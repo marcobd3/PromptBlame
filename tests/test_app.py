@@ -47,3 +47,31 @@ def test_app_end_to_end(monkeypatch):
     adopt.click().run()
     assert at.text_area(key="system_prompt").value == "Nuevo prompt."
     assert at.session_state.versions
+
+
+def test_app_with_other_providers(monkeypatch):
+    """Servicio con OpenAI y juez con Gemini: se construyen con su proveedor."""
+    built = []
+    original_init = LLM.__init__
+
+    def spy_init(self, *args, **kwargs):
+        kwargs.setdefault("client", object())
+        original_init(self, *args, **kwargs)
+        built.append((self.provider, self.model))
+
+    monkeypatch.setattr(LLM, "__init__", spy_init)
+    monkeypatch.setattr(LLM, "text", fake_text)
+    monkeypatch.setattr(LLM, "json", fake_json)
+
+    at = AppTest.from_file(str(Path(__file__).parent.parent / "app.py"), default_timeout=30).run()
+    at.selectbox(key="gen_provider").set_value("openai").run()
+    at.selectbox(key="judge_provider").set_value("gemini").run()
+    assert not at.exception
+    assert at.text_input(key="api_key_openai") is not None
+    assert at.text_input(key="api_key_gemini") is not None
+
+    at.button[0].click().run()
+    at.button[1].click().run()
+    assert not at.exception
+    assert ("openai", "gpt-6.1-sol") in built
+    assert ("gemini", "gemini-4-argon") in built

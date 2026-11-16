@@ -1,9 +1,10 @@
 """Atribución de la respuesta a instrucciones del system prompt y del user prompt.
 
-Funciona con modelos cerrados (sin acceso a logits ni a pesos) en dos pasos:
+Funciona con modelos cerrados (sin acceso a logits ni a pesos) de cualquier
+proveedor admitido en ``llm.py`` en dos pasos:
 
 1. **Atribución por juez LLM.** Los prompts y la respuesta se segmentan de forma
-   determinista en unidades numeradas (S1…, U1…, R1…). Un modelo de Claude
+   determinista en unidades numeradas (S1…, U1…, R1…). Un modelo juez
    recibe todas las unidades y decide, para cada unidad de la respuesta, de qué
    instrucciones procede. Las unidades contiguas con las mismas fuentes se
    agrupan en bloques.
