@@ -1,6 +1,6 @@
 [project]
 name = "promptblame"
-version = "0.1.0"
+version = "0.2.0"
 description = "Atribución de respuestas de LLM a instrucciones del system prompt y del user prompt"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
@@ -8,7 +8,10 @@ requires-python = ">=3.10"
 dependencies = ["anthropic>=2.9.0,<3", "streamlit>=1.67"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+openai = ["openai>=3.0"]
+gemini = ["google-genai>=1.51"]
+all = ["openai>=3.0", "google-genai>=1.51"]
+dev = ["pytest>=8", "openai>=3.0", "google-genai>=1.51"]
 
 [tool.setuptools]
 packages = ["promptblame"]

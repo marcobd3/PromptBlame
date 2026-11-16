@@ -7,8 +7,10 @@ para generar una respuesta, parte de la respuesta y localiza qué instrucciones
 del *system prompt* y del *user prompt* la causaron. Con ese mapa propone una
 versión mejorada del system prompt, tocando sólo las instrucciones responsables.
 
-Es una app de [Streamlit](https://streamlit.io) en Python que usa Claude a
-través de la API de Anthropic.
+Es una app de [Streamlit](https://streamlit.io) en Python. Usa Claude a través
+de la API de Anthropic por defecto, y también funciona con OpenAI, Google Gemini
+y cualquier endpoint compatible con la API de OpenAI (Ollama, OpenRouter,
+Mistral, Groq, vLLM, LM Studio…).
 
 ![Ventana de atribución en modo oscuro, con datos de ejemplo](docs/vista-atribucion.png)
 
@@ -45,7 +47,7 @@ PromptBlame combina dos técnicas que sólo necesitan la API:
 1. **Juez LLM sobre unidades numeradas.** Los prompts se segmentan de forma
    determinista en instrucciones (líneas, viñetas y frases: `S1, S2…` para el
    system prompt, `U1, U2…` para el user prompt) y la respuesta en segmentos
-   (`R1, R2…`). Un modelo de Claude recibe todo numerado y devuelve, con
+   (`R1, R2…`). Un modelo juez recibe todo numerado y devuelve, con
    *structured outputs*, las fuentes de cada segmento. Como los offsets se
    calculan en Python y el modelo sólo devuelve identificadores, **las citas
    son siempre literales** y no pueden inventarse. Los segmentos contiguos de
@@ -71,7 +73,8 @@ verificarla.
 
 ## Instalación y uso
 
-Requiere Python 3.10 o superior y una API key de Anthropic.
+Requiere Python 3.10 o superior y una API key del proveedor que vayas a usar
+(o un servidor local como Ollama, que no la necesita).
 
 ```bash
 git clone https://github.com/marcobd3/PromptBlame.git
@@ -82,15 +85,45 @@ export ANTHROPIC_API_KEY="sk-ant-..."   # o escríbela en la barra lateral
 streamlit run app.py
 ```
 
+`requirements.txt` instala los SDK de los tres proveedores. Si sólo vas a usar
+Claude, basta con `pip install .`; los demás se añaden con los extras
+`pip install ".[openai]"`, `".[gemini]"` o `".[all]"`.
+
 En la barra lateral puedes elegir:
 
 | Opción | Por defecto | Para qué |
 |---|---|---|
-| Modelo del servicio | `claude-opus-5-5` | El modelo que genera la respuesta que se analiza. |
-| Esfuerzo del servicio | `medium` | `output_config.effort` de la generación. |
-| Modelo de atribución y reescritura | `claude-opus-5-5` | El juez y el reescritor. |
-| Esfuerzo de atribución | `high` | Más esfuerzo, atribuciones más finas. |
+| Proveedor y modelo del servicio | Anthropic, `claude-opus-5-5` | El modelo que genera la respuesta que se analiza (y las regeneraciones de la ablación). |
+| Esfuerzo del servicio | `medium` | Esfuerzo de razonamiento de la generación. |
+| Proveedor y modelo del juez | Anthropic, `claude-opus-5-5` | El juez de atribución y el reescritor del system prompt. |
+| Esfuerzo del juez | `high` | Más esfuerzo, atribuciones más finas. |
+| Credenciales | variables de entorno | API key de cada proveedor en uso y, para el endpoint compatible, su URL base. |
 | Verificar con ablación | desactivado | Confirma cada atribución regenerando sin la instrucción. |
+
+El servicio y el juez son independientes: puedes analizar la respuesta de un
+modelo local de Ollama con Claude como juez, o comparar cómo atribuyen dos
+proveedores distintos la misma respuesta. La lista de modelos es una
+sugerencia; puedes escribir el identificador de cualquier otro modelo.
+
+### Proveedores
+
+| Proveedor | Variable de entorno | Salida estructurada del juez | Esfuerzo |
+|---|---|---|---|
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` | `output_config.format` con JSON Schema | `output_config.effort` |
+| OpenAI | `OPENAI_API_KEY` | `response_format` `json_schema` estricto | `reasoning_effort` (modelos de razonamiento) |
+| Google Gemini | `GEMINI_API_KEY` o `GOOGLE_API_KEY` | `response_json_schema` | `thinking_level` (Gemini 3 y posteriores) |
+| Compatible con OpenAI | `OPENAI_COMPATIBLE_API_KEY` (opcional) y `OPENAI_COMPATIBLE_BASE_URL` | `json_schema`; si el endpoint no lo admite, `json_object` y, por último, el esquema en el prompt | no se envía |
+
+URLs base habituales para el endpoint compatible:
+
+- Ollama: `http://localhost:11434/v1` (por defecto)
+- OpenRouter: `https://openrouter.ai/api/v1`
+- Mistral: `https://api.mistral.ai/v1`
+- Groq: `https://api.groq.com/openai/v1`
+
+Con modelos pequeños o sin salida estructurada estricta, el juez puede
+devolver identificadores de más o de menos; PromptBlame descarta los que no
+existen y avisa de los segmentos sin atribución.
 
 Con Claude Opus 5.5, Fable 5.2 y Sonnet 5.5 se activan los *fallbacks* del
 servidor (`fallbacks: "default"`): si el clasificador de seguridad rechaza una
@@ -102,7 +135,8 @@ petición, la API la reintenta con otro modelo en la misma llamada.
 app.py                     Interfaz de Streamlit (las dos pestañas)
 promptblame/
   segmentation.py          Segmentación determinista en unidades con offsets
-  llm.py                   Envoltorio de la API de Claude (texto y JSON)
+  llm.py                   Proveedores de LLM (Anthropic, OpenAI, Gemini,
+                           compatibles con OpenAI): texto y JSON
   attribution.py           Juez LLM, agrupación en bloques y ablación
   rewrite.py               Reescritura del system prompt y diff
   render.py                Vista HTML de bloques de colores y citas
@@ -116,7 +150,8 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Las pruebas simulan el cliente de Anthropic, así que no necesitan API key.
+Las pruebas simulan los clientes de cada proveedor, así que no necesitan API
+key ni gastan tokens.
 
 ## Limitaciones conocidas
 

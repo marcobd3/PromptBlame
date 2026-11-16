@@ -11,7 +11,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from promptblame.attribution import Attribution, attribute, verify_by_ablation
-from promptblame.llm import EFFORTS, LLM, MODELS, LLMError
+from promptblame.llm import DEFAULT_BASE_URL, EFFORTS, LLM, PROVIDERS, LLMError
 from promptblame.render import attribution_html
 from promptblame.rewrite import rewrite_system_prompt, unified_diff
 
@@ -40,31 +40,89 @@ for key, value in defaults.items():
 
 # --- Barra lateral: configuración -------------------------------------------
 
+
+def model_picker(role: str, label: str, default_effort: str) -> tuple[str, str, str]:
+    """Selector de proveedor, modelo y esfuerzo. Devuelve (proveedor, modelo, esfuerzo)."""
+    provider_id = st.selectbox(
+        f"Proveedor {label}",
+        list(PROVIDERS),
+        format_func=lambda p: PROVIDERS[p].label,
+        key=f"{role}_provider",
+    )
+    provider = PROVIDERS[provider_id]
+    model = st.selectbox(
+        f"Modelo {label}",
+        provider.models,
+        index=0,
+        key=f"{role}_model_{provider_id}",
+        accept_new_options=True,
+        help="Elige uno de la lista o escribe el identificador de cualquier otro modelo del proveedor.",
+    )
+    effort = st.select_slider(
+        f"Esfuerzo {label}",
+        EFFORTS,
+        value=default_effort,
+        key=f"{role}_effort",
+        disabled=not provider.supports_effort,
+        help=None if provider.supports_effort else "Este proveedor no tiene un ajuste de esfuerzo común; se ignora.",
+    )
+    return provider_id, model or "", effort
+
+
 with st.sidebar:
     st.header("Configuración")
-    api_key = st.text_input(
-        "API key de Anthropic",
-        value=os.environ.get("ANTHROPIC_API_KEY", ""),
-        type="password",
-        help="Si la dejas vacía se usan las credenciales del entorno.",
-    )
-    gen_model = st.selectbox("Modelo del servicio", MODELS, index=0)
-    gen_effort = st.select_slider("Esfuerzo del servicio", EFFORTS, value="medium")
+    st.subheader("Servicio")
+    gen_provider, gen_model, gen_effort = model_picker("gen", "del servicio", "medium")
     st.divider()
-    judge_model = st.selectbox("Modelo de atribución y reescritura", MODELS, index=0)
-    judge_effort = st.select_slider("Esfuerzo de atribución", EFFORTS, value="high")
+    st.subheader("Atribución y reescritura")
+    judge_provider, judge_model, judge_effort = model_picker("judge", "del juez", "high")
+    st.divider()
+
+    st.subheader("Credenciales")
+    api_keys: dict[str, str] = {}
+    base_url = ""
+    for provider_id in dict.fromkeys([gen_provider, judge_provider]):
+        provider = PROVIDERS[provider_id]
+        env_value = next((os.environ[k] for k in provider.env_keys if os.environ.get(k)), "")
+        if provider.needs_base_url:
+            base_url = st.text_input(
+                "URL base del endpoint",
+                value=os.environ.get("OPENAI_COMPATIBLE_BASE_URL", DEFAULT_BASE_URL),
+                help="Ollama: http://localhost:11434/v1 · OpenRouter: https://openrouter.ai/api/v1 · "
+                "Mistral: https://api.mistral.ai/v1",
+            )
+        api_keys[provider_id] = st.text_input(
+            f"API key de {provider.short or provider.label}" + ("" if provider.key_required else " (opcional)"),
+            value=env_value,
+            type="password",
+            key=f"api_key_{provider_id}",
+            help="Si la dejas vacía se usan las variables de entorno: " + ", ".join(provider.env_keys) + ".",
+        )
     st.divider()
     use_ablation = st.checkbox(
         "Verificar con ablación",
         value=False,
         help="Regenera la respuesta quitando cada instrucción citada para confirmar su efecto. "
-        "Hace una llamada extra por instrucción (más una de control).",
+        "Hace una llamada extra por instrucción (más una de control) con el modelo del servicio.",
     )
     max_ablation = st.number_input("Máx. instrucciones a ablacionar", 1, 30, 8, disabled=not use_ablation)
 
 
-def make_llm(model: str) -> LLM:
-    return LLM(model=model, api_key=api_key or None)
+def make_llm(provider_id: str, model: str) -> LLM:
+    return LLM(
+        model=model,
+        provider=provider_id,
+        api_key=api_keys.get(provider_id) or None,
+        base_url=base_url or None,
+    )
+
+
+def gen_llm() -> LLM:
+    return make_llm(gen_provider, gen_model)
+
+
+def judge_llm() -> LLM:
+    return make_llm(judge_provider, judge_model)
 
 
 def invalidate_attribution() -> None:
@@ -86,7 +144,7 @@ def compute_attribution() -> Attribution | None:
     try:
         with st.spinner("Atribuyendo cada bloque de la respuesta…"):
             attr = attribute(
-                make_llm(judge_model),
+                judge_llm(),
                 st.session_state.system_prompt,
                 st.session_state.user_prompt,
                 st.session_state.response,
@@ -94,7 +152,7 @@ def compute_attribution() -> Attribution | None:
             )
         if use_ablation and attr.blocks:
             with st.spinner("Verificando por ablación (regenerando sin cada instrucción)…"):
-                verify_by_ablation(make_llm(gen_model), attr, effort=gen_effort, max_sources=int(max_ablation))
+                verify_by_ablation(gen_llm(), attr, effort=gen_effort, max_sources=int(max_ablation))
     except LLMError as exc:
         st.error(str(exc))
         return None
@@ -140,7 +198,7 @@ with tab_blame:
         if st.button("Generar respuesta", type="primary"):
             try:
                 with st.spinner(f"Llamando a {gen_model}…"):
-                    st.session_state.response = make_llm(gen_model).text(
+                    st.session_state.response = gen_llm().text(
                         st.session_state.system_prompt, st.session_state.user_prompt, effort=gen_effort
                     )
                 invalidate_attribution()
@@ -176,7 +234,7 @@ with tab_improve:
                 try:
                     with st.spinner("Reescribiendo el system prompt con el mapa de atribución…"):
                         st.session_state.rewrite = rewrite_system_prompt(
-                            make_llm(judge_model), attr, improvement, effort=judge_effort
+                            judge_llm(), attr, improvement, effort=judge_effort
                         )
                 except LLMError as exc:
                     st.error(str(exc))
