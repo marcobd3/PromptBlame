@@ -31,7 +31,6 @@ defaults = {
     "user_prompt": EXAMPLE_USER,
     "response": "",
     "attribution": None,
-    "show_view": False,
     "rewrite": None,
     "versions": [],
 }
@@ -70,7 +69,6 @@ def make_llm(model: str) -> LLM:
 
 def invalidate_attribution() -> None:
     st.session_state.attribution = None
-    st.session_state.show_view = False
 
 
 def current_attribution_is_fresh() -> bool:
@@ -103,6 +101,27 @@ def compute_attribution() -> Attribution | None:
     st.session_state.attribution = attr
     return attr
 
+
+
+def theme_type() -> str | None:
+    try:
+        return st.context.theme.type
+    except AttributeError:  # Streamlit sin st.context.theme
+        return None
+
+
+@st.dialog("Atribución por bloques", width=1300)
+def show_attribution_dialog() -> None:
+    attr = compute_attribution()
+    if attr is None:
+        return
+    st.caption(
+        "Pasa el ratón por un bloque para ver su cita; haz clic para saltar a ella. "
+        "Gris = sin instrucción de origen."
+    )
+    for note in attr.notes:
+        st.info(note)
+    components.html(attribution_html(attr, theme=theme_type()), height=680, scrolling=False)
 
 
 # --- Interfaz -----------------------------------------------------------------
@@ -138,20 +157,7 @@ with tab_blame:
             help="También puedes pegar aquí una respuesta que ya tengas.",
         )
         if st.button("Ver atribución", disabled=not st.session_state.response.strip()):
-            st.session_state.show_view = True
-
-    if st.session_state.show_view and st.session_state.response.strip():
-        attr = compute_attribution()
-        if attr is not None:
-            st.divider()
-            st.subheader("Atribución por bloques")
-            st.caption(
-                "Pasa el ratón por un bloque para ver su cita; haz clic para saltar a ella. "
-                "Gris = sin instrucción de origen."
-            )
-            for note in attr.notes:
-                st.info(note)
-            components.html(attribution_html(attr), height=720, scrolling=False)
+            show_attribution_dialog()
 
 with tab_improve:
     if not st.session_state.response.strip():
