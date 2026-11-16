@@ -1,0 +1,18 @@
+[project]
+name = "promptblame"
+version = "0.1.0"
+description = "Atribución de respuestas de LLM a instrucciones del system prompt y del user prompt"
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+requires-python = ">=3.10"
+dependencies = ["anthropic>=2.9.0,<3", "streamlit>=1.67"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["promptblame"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
