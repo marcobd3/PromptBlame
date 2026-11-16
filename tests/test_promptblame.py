@@ -199,3 +199,11 @@ def test_no_fallbacks_for_models_without_support():
 def test_segment_does_not_split_list_markers_or_abbreviations():
     texts = [u.text for u in segment("1. Pela las patatas. Luego sálalas.\nHabla con el Sr. Pérez.", "r", "R")]
     assert texts == ["1. Pela las patatas.", "Luego sálalas.", "Habla con el Sr. Pérez."]
+
+
+def test_html_theme_class():
+    llm, _ = fake_llm(judge_handler)
+    attr = attribute(llm, SYSTEM, USER, RESPONSE)
+    assert '<body class="dark" data-theme="dark">' in attribution_html(attr, theme="dark")
+    assert "<body>" in attribution_html(attr)
+    assert "body.dark" in attribution_html(attr)

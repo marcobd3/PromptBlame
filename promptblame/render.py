@@ -58,29 +58,59 @@ def _card_html(block: Block, index: int) -> str:
 
 
 CSS = """
+:root {
+  --fg: #1f2937; --muted: #4b5563; --soft: #6b7280; --border: #e5e7eb; --rule: #d1d5db;
+  --quote-bg: #f9fafb; --card-bg: transparent; --focus: #111827; --blk-fg: #111827;
+  --ok-bg: #dcfce7; --ok-fg: #166534; --ko-bg: #fee2e2; --ko-fg: #991b1b;
+}
+body.dark {
+  --fg: #e5e7eb; --muted: #c4c9d4; --soft: #9ca3af; --border: #3f4451; --rule: #565c6b;
+  --quote-bg: #262a35; --card-bg: #1c1f27; --focus: #f9fafb; --blk-fg: #111827;
+  --ok-bg: #14532d; --ok-fg: #bbf7d0; --ko-bg: #7f1d1d; --ko-fg: #fecaca;
+}
 * { box-sizing: border-box; }
-body { margin: 0; font-family: "Source Sans Pro", system-ui, sans-serif; font-size: 15px; color: #1f2937; }
+html, body { background: transparent; }
+body { margin: 0; font-family: "Source Sans Pro", system-ui, sans-serif; font-size: 15px; color: var(--fg); }
 .wrap { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; }
-.col { max-height: 680px; overflow-y: auto; padding: 4px 8px 4px 0; }
+.col { max-height: 640px; overflow-y: auto; padding: 4px 8px 4px 0; }
 .resp { white-space: pre-wrap; line-height: 1.75; }
-.blk { border-radius: 4px; padding: 1px 2px; cursor: pointer; transition: outline .1s; }
-.blk sup { font-size: 10px; color: #6b7280; margin-right: 2px; font-weight: 600; }
-.blk.on, .card.on { outline: 2px solid #111827; }
-.card { border: 1px solid #e5e7eb; border-left: 6px solid; border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; cursor: pointer; }
+.blk { border-radius: 4px; padding: 1px 2px; cursor: pointer; color: var(--blk-fg); }
+.blk sup { font-size: 10px; color: #4b5563; margin-right: 2px; font-weight: 600; }
+.blk.on, .card.on { outline: 2px solid var(--focus); }
+.card { background: var(--card-bg); border: 1px solid var(--border); border-left: 6px solid; border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; cursor: pointer; }
 .title { font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
-.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #9ca3af; }
-.meta { font-size: 12px; color: #4b5563; }
-blockquote { margin: 2px 0 8px; padding: 4px 8px; background: #f9fafb; border-left: 3px solid #d1d5db; white-space: pre-wrap; }
-.why { font-size: 13px; color: #374151; font-style: italic; }
-.none { font-size: 13px; color: #6b7280; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid var(--soft); }
+.meta { font-size: 12px; color: var(--muted); }
+blockquote { margin: 2px 0 8px; padding: 4px 8px; background: var(--quote-bg); border-left: 3px solid var(--rule); white-space: pre-wrap; }
+.why { font-size: 13px; color: var(--muted); font-style: italic; }
+.none { font-size: 13px; color: var(--soft); }
 .badge { font-size: 11px; border-radius: 10px; padding: 1px 6px; margin-left: 4px; }
-.badge.ok { background: #dcfce7; color: #166534; } .badge.ko { background: #fee2e2; color: #991b1b; }
+.badge.ok { background: var(--ok-bg); color: var(--ok-fg); } .badge.ko { background: var(--ko-bg); color: var(--ko-fg); }
 h4 { margin: 4px 0 8px; }
 .unused { margin-top: 14px; font-size: 13px; }
 .unused li { margin-bottom: 4px; }
 """
 
 JS = """
+// Ajusta el tema al de Streamlit leyendo el fondo de la página padre (el
+// iframe srcdoc comparte origen). Si no se puede, se queda el tema del servidor
+// o, sin él, el del sistema operativo.
+function applyTheme() {
+  let dark = null;
+  try {
+    const app = window.parent.document.querySelector('.stApp') || window.parent.document.body;
+    const m = getComputedStyle(app).backgroundColor.match(/\\d+(\\.\\d+)?/g);
+    if (m && m.length >= 3) dark = (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) < 128;
+  } catch (e) {}
+  if (dark === null && !document.body.dataset.theme) {
+    dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  if (dark !== null) document.body.classList.toggle('dark', dark);
+}
+applyTheme();
+try {
+  new MutationObserver(applyTheme).observe(window.parent.document.head, {childList: true, subtree: true});
+} catch (e) {}
 const all = (id) => document.querySelectorAll('[data-b="' + id + '"]');
 document.querySelectorAll('[data-b]').forEach((el) => {
   const id = el.dataset.b;
@@ -95,8 +125,13 @@ document.querySelectorAll('[data-b]').forEach((el) => {
 """
 
 
-def attribution_html(attribution: Attribution) -> str:
-    """Documento HTML autocontenido con la vista de atribución."""
+def attribution_html(attribution: Attribution, theme: str | None = None) -> str:
+    """Documento HTML autocontenido con la vista de atribución.
+
+    ``theme`` ("light" o "dark") es el tema que Streamlit detectó; en el
+    navegador se corrige leyendo el fondo real de la página.
+    """
+    body_attrs = f' class="{theme}" data-theme="{theme}"' if theme in ("light", "dark") else ""
     cards = "".join(_card_html(b, i) for i, b in enumerate(attribution.blocks))
     unused = attribution.unused_sources
     unused_html = ""
@@ -109,7 +144,7 @@ def attribution_html(attribution: Attribution) -> str:
             f"<ul>{items}</ul></div>"
         )
     return (
-        f"<!DOCTYPE html><html><head><meta charset='utf-8'><style>{CSS}</style></head><body>"
+        f"<!DOCTYPE html><html><head><meta charset='utf-8'><style>{CSS}</style></head><body{body_attrs}>"
         '<div class="wrap">'
         f'<div class="col"><h4>Respuesta</h4><div class="resp">{_response_html(attribution)}</div></div>'
         f'<div class="col"><h4>Origen de cada bloque</h4>{cards}{unused_html}</div>'

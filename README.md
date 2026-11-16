@@ -10,7 +10,9 @@ versión mejorada del system prompt, tocando sólo las instrucciones responsable
 Es una app de [Streamlit](https://streamlit.io) en Python que usa Claude a
 través de la API de Anthropic.
 
-![Vista de atribución con datos de ejemplo](docs/vista-atribucion.png)
+![Ventana de atribución en modo oscuro, con datos de ejemplo](docs/vista-atribucion.png)
+
+La vista se adapta al tema claro u oscuro de Streamlit.
 
 ## Qué hace
 
@@ -18,8 +20,8 @@ través de la API de Anthropic.
 
 1. Escribe un system prompt y un user prompt, y pulsa **Generar respuesta**
    (o pega en la caja de salida una respuesta que ya tengas).
-2. Pulsa **Ver atribución**. La respuesta aparece dividida en bloques de
-   colores y, a la derecha, cada bloque enlaza con la cita literal del system
+2. Pulsa **Ver atribución**. Se abre una ventana emergente con la respuesta
+   dividida en bloques de colores y, a la derecha, cada bloque enlaza con la cita literal del system
    prompt o del user prompt de donde viene, con su nivel de confianza y una
    explicación breve. Al pasar el ratón por un bloque se resalta su cita, y al
    hacer clic se salta a ella.
