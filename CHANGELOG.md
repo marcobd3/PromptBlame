@@ -3,7 +3,15 @@
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 el proyecto usa [versionado semántico](https://semver.org/lang/es/).
 
-## [0.4.0] - sin publicar
+## [0.4.1] - 2026-11-17
+
+### Cambiado
+
+- Metadatos de PyPI en inglés: descripción, palabras clave, clasificadores
+  (inglés y español) y enlace a la documentación. El mensaje del comando
+  `promptblame` cuando falta Streamlit también pasa a inglés.
+
+## [0.4.0] - 2026-11-17
 
 Primera versión preparada para PyPI.
 

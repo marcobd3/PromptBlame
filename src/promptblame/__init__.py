@@ -1,10 +1,10 @@
-"""PromptBlame: atribución de respuestas de LLM a instrucciones del prompt.
+"""PromptBlame: attribute LLM responses to the prompt instructions behind them.
 
-API pública::
+Public API::
 
     from promptblame import LLM, attribute, verify_by_ablation, rewrite_system_prompt
 
-    llm = LLM()  # Claude; la API key se lee de ANTHROPIC_API_KEY
+    llm = LLM()  # Claude; the API key is read from ANTHROPIC_API_KEY
     attr = attribute(llm, system_prompt, user_prompt, response)
 """
 
@@ -14,7 +14,7 @@ from .render import attribution_html
 from .rewrite import Rewrite, rewrite_system_prompt, unified_diff
 from .segmentation import Unit, segment
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 __all__ = [
     "DEFAULT_PROVIDER",
