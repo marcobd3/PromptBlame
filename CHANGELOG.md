@@ -11,7 +11,9 @@ Primera versión preparada para PyPI.
 
 - Paquete instalable con `pip install promptblame` y comando `promptblame`
   que abre la interfaz.
-- Extras `[app]` (Streamlit), `[openai]`, `[gemini]` y `[all]`.
+- Los SDK de Anthropic y de OpenAI se instalan por defecto (el de OpenAI sirve
+  también para los endpoints compatibles). Extras `[app]` (Streamlit),
+  `[gemini]` y `[all]`.
 - API pública en `promptblame` (`from promptblame import LLM, attribute…`),
   anotaciones de tipos (`py.typed`) y comprobación con mypy.
 - Lint y formato con ruff, construcción del paquete en CI y workflow de

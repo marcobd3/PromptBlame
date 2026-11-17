@@ -75,4 +75,4 @@ jobs:
         run: |
           python -m venv /tmp/wheel-env
           /tmp/wheel-env/bin/pip install dist/*.whl
-          cd /tmp && /tmp/wheel-env/bin/python -c "import promptblame; print(promptblame.__version__)"
+          cd /tmp && /tmp/wheel-env/bin/python -c "import anthropic, openai, promptblame; print(promptblame.__version__)"

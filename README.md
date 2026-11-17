@@ -72,12 +72,13 @@ argumentos se pasan a Streamlit, p. ej. `promptblame --server.port 8600`.
 
 ### Extras
 
-El paquete base sólo trae la librería y el SDK de Anthropic. Instala lo que uses:
+El paquete base trae la librería y los SDK de Anthropic y de OpenAI, así que
+funciona con Claude, OpenAI y cualquier endpoint compatible con OpenAI (Ollama,
+OpenRouter, Mistral, vLLM…). Añade lo que necesites:
 
 ```bash
-pip install promptblame                    # librería, sólo Claude
+pip install promptblame                    # librería: Claude, OpenAI y compatibles
 pip install "promptblame[app]"             # + interfaz de Streamlit (comando promptblame)
-pip install "promptblame[openai]"          # + OpenAI y endpoints compatibles
 pip install "promptblame[gemini]"          # + Google Gemini
 pip install "promptblame[all]"             # todo
 ```

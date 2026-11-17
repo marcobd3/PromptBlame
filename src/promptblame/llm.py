@@ -8,8 +8,9 @@ Proveedores admitidos:
 - ``compatible``: cualquier endpoint compatible con la API de OpenAI (Ollama,
   OpenRouter, Mistral, Groq, vLLM, LM Studio…), indicando su URL base.
 
-Los SDK de OpenAI y de Google se importan sólo cuando se usan, así que no hace
-falta instalarlos si se trabaja únicamente con Claude.
+Los SDK de Anthropic y de OpenAI son dependencias del paquete; el de Google es
+opcional (``pip install "promptblame[gemini]"``). Los de OpenAI y Google se
+importan sólo cuando se usan.
 """
 
 from __future__ import annotations
@@ -194,7 +195,7 @@ class LLM:
             try:
                 import openai
             except ImportError as exc:
-                raise LLMError("Falta el paquete «openai»: pip install openai") from exc
+                raise LLMError("Falta el paquete «openai»: reinstala promptblame (pip install -U promptblame)") from exc
             if self.provider == "compatible":
                 if not self.base_url:
                     raise LLMError("Indica la URL base del endpoint compatible con OpenAI.")
@@ -207,7 +208,7 @@ class LLM:
         try:
             from google import genai
         except ImportError as exc:
-            raise LLMError("Falta el paquete «google-genai»: pip install google-genai") from exc
+            raise LLMError('Falta el paquete «google-genai»: pip install "promptblame[gemini]"') from exc
         try:
             return genai.Client(api_key=api_key)
         except ValueError as exc:

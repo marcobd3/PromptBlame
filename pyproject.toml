@@ -26,16 +26,16 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Typing :: Typed",
 ]
-# La librería sólo necesita el SDK de Anthropic. La interfaz y los demás
-# proveedores son extras. Se acota la versión mayor de cada SDK para que una
-# versión con cambios incompatibles no rompa instalaciones existentes.
-dependencies = ["anthropic>=2.9.0,<3"]
+# Por defecto se instalan los SDK de Anthropic y de OpenAI; este último cubre
+# OpenAI y cualquier endpoint compatible (Ollama, OpenRouter, Mistral, vLLM…).
+# La interfaz y Gemini son extras. Se acota la versión mayor de cada SDK para
+# que una versión con cambios incompatibles no rompa instalaciones existentes.
+dependencies = ["anthropic>=2.9.0,<3", "openai>=3.0,<4"]
 
 [project.optional-dependencies]
 app = ["streamlit>=1.67,<2"]
-openai = ["openai>=3.0,<4"]
 gemini = ["google-genai>=1.51,<2"]
-all = ["promptblame[app,openai,gemini]"]
+all = ["promptblame[app,gemini]"]
 
 [project.scripts]
 promptblame = "promptblame.cli:main"
