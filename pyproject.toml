@@ -4,7 +4,7 @@ version = "0.3.0"
 description = "Atribución de respuestas de LLM a instrucciones del system prompt y del user prompt"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{ name = "Marco Baleato Domínguez" }]
 keywords = ["llm", "prompt-engineering", "attribution", "explainability", "streamlit", "claude"]
 classifiers = [
@@ -15,7 +15,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",

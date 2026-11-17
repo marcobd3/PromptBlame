@@ -5,7 +5,7 @@
 **Descubre qué instrucción de tu prompt produjo cada parte de la respuesta de un LLM.**
 
 [![Tests](https://github.com/marcobd3/PromptBlame/actions/workflows/tests.yml/badge.svg)](https://github.com/marcobd3/PromptBlame/actions/workflows/tests.yml)
-[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
 [![License: AGPL v3](https://img.shields.io/badge/licencia-AGPL--3.0-blue.svg)](LICENSE)
 [![Proveedores](https://img.shields.io/badge/LLM-Claude%20%C2%B7%20OpenAI%20%C2%B7%20Gemini%20%C2%B7%20Ollama-6E56CF)](#proveedores)
@@ -56,7 +56,7 @@ logits, atención ni pesos, sólo la API del proveedor.
 
 ## Inicio rápido
 
-Requisitos: Python 3.10 o superior y una API key del proveedor que vayas a usar
+Requisitos: Python 3.11 o superior y una API key del proveedor que vayas a usar
 (o un servidor local como Ollama, que no la necesita).
 
 ```bash
@@ -271,7 +271,7 @@ Los tests simulan los clientes de cada proveedor, así que no necesitan API key
 ni gastan tokens. Cubren la segmentación, el juez, la agrupación en bloques, la
 ablación, la reescritura, la vista HTML, los cuatro proveedores y un recorrido
 completo de la interfaz con `streamlit.testing`. Se ejecutan en GitHub Actions
-con Python 3.10 a 3.13 en cada *push* y *pull request*.
+con Python 3.11 a 3.13 en cada *push* y *pull request*.
 
 ## Limitaciones conocidas
 
