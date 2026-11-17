@@ -92,3 +92,21 @@ def test_app_with_other_providers(monkeypatch):
     assert not at.exception
     assert ("openai", "gpt-6.1-sol") in built
     assert ("gemini", "gemini-4-argon") in built
+
+
+def test_root_app_uses_repo_code(monkeypatch, tmp_path):
+    """``streamlit run app.py`` ejecuta el código de src/, no un paquete instalado antiguo."""
+    import sys
+
+    stale = tmp_path / "promptblame"
+    stale.mkdir()
+    (stale / "__init__.py").write_text("")
+    (stale / "app.py").write_text("import streamlit as st\nst.write('VERSION ANTIGUA')\n")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    for name in [m for m in sys.modules if m == "promptblame" or m.startswith("promptblame.")]:
+        monkeypatch.delitem(sys.modules, name)
+
+    at = AppTest.from_file(str(Path(__file__).parent.parent / "app.py"), default_timeout=30).run()
+    assert not at.exception
+    assert not any("VERSION ANTIGUA" in m.value for m in at.markdown)
+    assert at.text_area(key="judge_instructions") is not None
