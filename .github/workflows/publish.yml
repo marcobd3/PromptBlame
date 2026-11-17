@@ -1,0 +1,67 @@
+# Publica en PyPI cada release de GitHub con Trusted Publishing (OIDC): no hay
+# ningún token de PyPI guardado en el repositorio.
+#
+# Configuración (una vez):
+#   1. En PyPI → Your projects → Publishing, añade un "pending publisher":
+#      propietario marcobd3, repositorio PromptBlame, workflow publish.yml,
+#      entorno pypi.
+#   2. En GitHub → Settings → Environments, crea el entorno "pypi" (conviene
+#      exigir aprobación manual en "Required reviewers").
+#   3. Sube la versión en src/promptblame/__init__.py, crea la etiqueta vX.Y.Z
+#      y publica la release.
+name: publish
+
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  build:
+    name: Construir la distribución
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Construir sdist y wheel
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          twine check --strict dist/*
+      - name: Comprobar que la etiqueta coincide con la versión del paquete
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION=$(basename dist/promptblame-*.tar.gz .tar.gz | sed 's/^promptblame-//')
+          if [ "${TAG#v}" != "$VERSION" ]; then
+            echo "::error::La etiqueta $TAG no coincide con la versión $VERSION del paquete."
+            exit 1
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publicar en PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/promptblame/
+    permissions:
+      id-token: write # sólo para Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3

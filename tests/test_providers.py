@@ -74,7 +74,8 @@ JUDGED = {"segments": [{"id": "R1", "sources": [{"id": "S1", "confidence": "alta
 def test_providers_registry():
     assert list(PROVIDERS) == ["anthropic", "openai", "gemini", "compatible"]
     assert PROVIDERS["anthropic"].models[0] == "claude-opus-5-5"
-    assert PROVIDERS["compatible"].needs_base_url and not PROVIDERS["compatible"].key_required
+    assert PROVIDERS["compatible"].needs_base_url
+    assert not PROVIDERS["compatible"].key_required
 
 
 def test_unknown_provider_and_missing_base_url():
@@ -114,7 +115,8 @@ def test_openai_json_uses_strict_schema_for_attribution():
     llm, chat = fake_openai(lambda kw: _openai_response(json.dumps(JUDGED)))
     attr = attribute(llm, "Saluda.", "Hola", "¡Hola!")
     fmt = chat.calls[0]["response_format"]
-    assert fmt["type"] == "json_schema" and fmt["json_schema"]["strict"] is True
+    assert fmt["type"] == "json_schema"
+    assert fmt["json_schema"]["strict"] is True
     assert fmt["json_schema"]["schema"] == ATTRIBUTION_SCHEMA
     assert attr.blocks[0].sources[0].unit.id == "S1"
 
@@ -161,7 +163,8 @@ def test_gemini_json_and_thinking_level():
     llm, models = fake_gemini(lambda kw: _gemini_response(json.dumps(JUDGED)))
     assert llm.json("Juez.", "datos", ATTRIBUTION_SCHEMA, effort="max") == JUDGED
     call = models.calls[0]
-    assert call["model"] == "gemini-4-argon" and call["contents"] == "datos"
+    assert call["model"] == "gemini-4-argon"
+    assert call["contents"] == "datos"
     config = call["config"]
     assert config["system_instruction"] == "Juez."
     assert config["response_mime_type"] == "application/json"

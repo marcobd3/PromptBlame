@@ -29,9 +29,7 @@ class FakeMessages:
     def create(self, **kwargs):
         self.calls.append(kwargs)
         text, stop = self.handler(kwargs)
-        return SimpleNamespace(
-            stop_reason=stop, content=[SimpleNamespace(type="text", text=text)]
-        )
+        return SimpleNamespace(stop_reason=stop, content=[SimpleNamespace(type="text", text=text)])
 
 
 def fake_llm(handler, model="claude-opus-5-5"):
@@ -55,7 +53,8 @@ def test_segment_splits_sentences_and_keeps_code_blocks():
     text = "Primera frase. ¿Segunda? Sí.\n```python\nx = 1. y = 2\n```\nFin."
     texts = [u.text for u in segment(text, "response", "R")]
     assert texts[:3] == ["Primera frase.", "¿Segunda?", "Sí."]
-    assert texts[3].startswith("```python") and texts[3].endswith("```")
+    assert texts[3].startswith("```python")
+    assert texts[3].endswith("```")
     assert texts[4] == "Fin."
 
 
@@ -72,9 +71,21 @@ def judge_handler(kwargs):
     assert "[S2] - Responde siempre en español." in request
     assert "[U2] Somos cuatro." in request
     segments = [
-        {"id": "R1", "sources": [{"id": "U2", "confidence": "alta"}, {"id": "S2", "confidence": "media"}], "explanation": "Cuatro personas."},
-        {"id": "R2", "sources": [{"id": "S3", "confidence": "alta"}, {"id": "U1", "confidence": "alta"}], "explanation": "Pasos numerados."},
-        {"id": "R3", "sources": [{"id": "S3", "confidence": "media"}, {"id": "U1", "confidence": "alta"}], "explanation": "Más pasos."},
+        {
+            "id": "R1",
+            "sources": [{"id": "U2", "confidence": "alta"}, {"id": "S2", "confidence": "media"}],
+            "explanation": "Cuatro personas.",
+        },
+        {
+            "id": "R2",
+            "sources": [{"id": "S3", "confidence": "alta"}, {"id": "U1", "confidence": "alta"}],
+            "explanation": "Pasos numerados.",
+        },
+        {
+            "id": "R3",
+            "sources": [{"id": "S3", "confidence": "media"}, {"id": "U1", "confidence": "alta"}],
+            "explanation": "Más pasos.",
+        },
         {"id": "R4", "sources": [{"id": "S99", "confidence": "alta"}], "explanation": ""},
     ]
     return json.dumps({"segments": segments}), "end_turn"
@@ -106,7 +117,7 @@ def test_merge_blocks_keeps_order_of_response():
     segs = segment(RESPONSE, "response", "R")
     blocks = merge_blocks(RESPONSE, segs, {}, [])
     # Sin fuentes, los segmentos se agrupan por párrafo.
-    assert [b.text for b in blocks] == [p for p in RESPONSE.split("\n\n")]
+    assert [b.text for b in blocks] == list(RESPONSE.split("\n\n"))
 
 
 # --- Ablación -------------------------------------------------------------------
@@ -126,7 +137,10 @@ def test_verify_by_ablation_confirms_real_dependencies():
         system = kwargs.get("system", "")
         user = kwargs["messages"][0]["content"]
         if "listas numeradas" not in system:  # sin S3 los pasos cambian
-            return "Aquí tienes la receta para cuatro personas. Pela, corta y fríe todo junto. ¡Buen provecho!", "end_turn"
+            return (
+                "Aquí tienes la receta para cuatro personas. Pela, corta y fríe todo junto. ¡Buen provecho!",
+                "end_turn",
+            )
         if "cuatro" not in user:  # sin U2 cambia la primera frase
             return RESPONSE.replace("para cuatro personas", "básica"), "end_turn"
         return RESPONSE, "end_turn"
@@ -171,7 +185,8 @@ def test_rewrite_uses_attribution_map():
 
     def rewriter(kwargs):
         request = kwargs["messages"][0]["content"]
-        assert "<mapa_de_atribucion>" in request and "Instrucciones sin efecto visible: S1" in request
+        assert "<mapa_de_atribucion>" in request
+        assert "Instrucciones sin efecto visible: S1" in request
         assert "Más corto" in request
         payload = {
             "new_system_prompt": SYSTEM + "\n- Sé breve.",
@@ -211,7 +226,8 @@ def test_no_fallbacks_for_models_without_support():
     llm, messages = fake_llm(lambda kw: ("hola", "end_turn"), model="claude-haiku-5-5")
     assert llm.text("", "u") == "hola"
     call = messages.calls[0]
-    assert "fallbacks" not in call and "system" not in call
+    assert "fallbacks" not in call
+    assert "system" not in call
     assert call["output_config"] == {"effort": "medium"}
 
 

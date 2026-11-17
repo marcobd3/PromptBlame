@@ -1,9 +1,14 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
 [project]
 name = "promptblame"
-version = "0.3.0"
+dynamic = ["version"]
 description = "Atribución de respuestas de LLM a instrucciones del system prompt y del user prompt"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "Marco Baleato Domínguez" }]
 keywords = ["llm", "prompt-engineering", "attribution", "explainability", "streamlit", "claude"]
@@ -19,22 +24,86 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
 ]
-dependencies = ["anthropic>=2.9.0,<3", "streamlit>=1.67"]
+# Por defecto se instalan los SDK de Anthropic y de OpenAI; este último cubre
+# OpenAI y cualquier endpoint compatible (Ollama, OpenRouter, Mistral, vLLM…).
+# La interfaz y Gemini son extras. Se acota la versión mayor de cada SDK para
+# que una versión con cambios incompatibles no rompa instalaciones existentes.
+dependencies = ["anthropic>=2.9.0,<3", "openai>=3.0,<4"]
 
 [project.optional-dependencies]
-openai = ["openai>=3.0"]
-gemini = ["google-genai>=1.51"]
-all = ["openai>=3.0", "google-genai>=1.51"]
-dev = ["pytest>=8", "openai>=3.0", "google-genai>=1.51"]
+app = ["streamlit>=1.67,<2"]
+gemini = ["google-genai>=1.51,<2"]
+all = ["promptblame[app,gemini]"]
+
+[project.scripts]
+promptblame = "promptblame.cli:main"
 
 [project.urls]
+Homepage = "https://github.com/marcobd3/PromptBlame"
 Repository = "https://github.com/marcobd3/PromptBlame"
 Issues = "https://github.com/marcobd3/PromptBlame/issues"
+Changelog = "https://github.com/marcobd3/PromptBlame/blob/main/CHANGELOG.md"
 
-[tool.setuptools]
-packages = ["promptblame"]
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.14", "mypy>=1.18", "build>=1.3", "twine>=6.2"]
+
+# --- Build ----------------------------------------------------------------------
+
+[tool.hatch.version]
+path = "src/promptblame/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/promptblame"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/promptblame", "tests", "README.md", "CHANGELOG.md", "SECURITY.md", "LICENSE"]
+
+# --- Tests ----------------------------------------------------------------------
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
 testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--import-mode=importlib"]
+filterwarnings = ["error::DeprecationWarning:promptblame"]
+
+# --- Lint y tipos -----------------------------------------------------------------
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "I",            # orden de imports
+    "UP",           # sintaxis moderna
+    "B",            # bugbear
+    "S",            # bandit (seguridad)
+    "SIM",          # simplificaciones
+    "RUF",          # reglas propias de ruff
+    "PT",           # estilo de pytest
+    "C4",           # comprehensions
+]
+ignore = [
+    "E501",  # la longitud de línea la gestiona ruff format
+    "RUF001", "RUF002", "RUF003",  # «comillas» y caracteres no ASCII: el proyecto está en español
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]  # assert y contraseñas de prueba
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/promptblame"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = ["streamlit.*", "google.*", "openai.*"]
+ignore_missing_imports = true

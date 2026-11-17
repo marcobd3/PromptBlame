@@ -6,3 +6,9 @@ venv/
 .pytest_cache/
 .streamlit/secrets.toml
 *.egg-info/
+
+# Build
+build/
+dist/
+.ruff_cache/
+.mypy_cache/

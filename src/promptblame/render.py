@@ -7,8 +7,16 @@ from html import escape
 from .attribution import Attribution, Block
 
 PALETTE = [
-    "#ffd6a5", "#caffbf", "#9bf6ff", "#bdb2ff", "#ffc6ff",
-    "#fdffb6", "#a0c4ff", "#ffadad", "#b9fbc0", "#f1c0e8",
+    "#ffd6a5",
+    "#caffbf",
+    "#9bf6ff",
+    "#bdb2ff",
+    "#ffc6ff",
+    "#fdffb6",
+    "#a0c4ff",
+    "#ffadad",
+    "#b9fbc0",
+    "#f1c0e8",
 ]
 NO_SOURCE = "#e5e7eb"
 ORIGIN_LABEL = {"system": "System prompt", "user": "User prompt"}
@@ -31,7 +39,7 @@ def _response_html(attribution: Attribution) -> str:
         parts.append(escape(attribution.response[cursor : block.start]))
         parts.append(
             f'<span class="blk" data-b="{block.id}" style="background:{block_color(block, i)}">'
-            f'<sup>{block.id}</sup>{escape(block.text)}</span>'
+            f"<sup>{block.id}</sup>{escape(block.text)}</span>"
         )
         cursor = block.end
     parts.append(escape(attribution.response[cursor:]))
@@ -43,8 +51,8 @@ def _card_html(block: Block, index: int) -> str:
     if block.sources:
         quotes = "".join(
             f'<div class="quote"><div class="meta"><b>{link.unit.id}</b> · {ORIGIN_LABEL[link.unit.origin]}'
-            f' · confianza {link.confidence} {_ablation_badge(link.ablation_effect, link.verified)}</div>'
-            f'<blockquote>{escape(link.unit.text)}</blockquote></div>'
+            f" · confianza {link.confidence} {_ablation_badge(link.ablation_effect, link.verified)}</div>"
+            f"<blockquote>{escape(link.unit.text)}</blockquote></div>"
             for link in block.sources
         )
     else:
@@ -136,13 +144,8 @@ def attribution_html(attribution: Attribution, theme: str | None = None) -> str:
     unused = attribution.unused_sources
     unused_html = ""
     if unused:
-        items = "".join(
-            f"<li><b>{u.id}</b> ({ORIGIN_LABEL[u.origin]}): {escape(u.text)}</li>" for u in unused
-        )
-        unused_html = (
-            '<div class="unused"><h4>Instrucciones sin efecto visible</h4>'
-            f"<ul>{items}</ul></div>"
-        )
+        items = "".join(f"<li><b>{u.id}</b> ({ORIGIN_LABEL[u.origin]}): {escape(u.text)}</li>" for u in unused)
+        unused_html = f'<div class="unused"><h4>Instrucciones sin efecto visible</h4><ul>{items}</ul></div>'
     return (
         f"<!DOCTYPE html><html><head><meta charset='utf-8'><style>{CSS}</style></head><body{body_attrs}>"
         '<div class="wrap">'
