@@ -8,8 +8,7 @@ proveedor admitido en ``llm.py`` en dos pasos:
    recibe todas las unidades y decide, para cada unidad de la respuesta, de qué
    instrucciones procede. Las unidades contiguas con las mismas fuentes se
    agrupan en bloques.
-2. **Verificación por ablación (opcional).** Al estilo de ContextCite, pero a
-   nivel de instrucción: para cada instrucción citada se regenera la respuesta
+2. **Verificación por ablación (opcional).** A nivel de instrucción: para cada instrucción citada se regenera la respuesta
    sin ella y se mide cuánto cambia cada bloque que la cita respecto a una
    regeneración de control con el prompt completo. Si al quitar la instrucción
    el bloque desaparece o cambia mucho, la atribución queda confirmada.
@@ -75,6 +74,21 @@ si lo favorece, "baja" si la relación es indirecta.
 instrucción, deja sources vacío.
 - explanation: una frase breve en español que explique el vínculo."""
 
+CUSTOM_INSTRUCTIONS_HEADER = """Criterios adicionales del usuario. Aplícalos \
+en esta tarea siempre que no contradigan el formato de salida ni la regla de \
+citar sólo identificadores existentes:"""
+
+
+def with_custom_instructions(base: str, instructions: str | None) -> str:
+    """Añade al system prompt del juez las instrucciones personalizadas del usuario."""
+    instructions = (instructions or "").strip()
+    if not instructions:
+        return base
+    return (
+        f"{base}\n\n{CUSTOM_INSTRUCTIONS_HEADER}\n"
+        f"<criterios_del_usuario>\n{instructions}\n</criterios_del_usuario>"
+    )
+
 
 @dataclass
 class SourceLink:
@@ -110,6 +124,8 @@ class Attribution:
     segments: list[Unit]
     blocks: list[Block]
     ablation_done: bool = False
+    # Instrucciones personalizadas con las que se evaluó (para invalidar la caché).
+    instructions: str = ""
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -185,16 +201,31 @@ def merge_blocks(
 
 
 def attribute(
-    llm: LLM, system_prompt: str, user_prompt: str, response: str, effort: str = "high"
+    llm: LLM,
+    system_prompt: str,
+    user_prompt: str,
+    response: str,
+    effort: str = "high",
+    instructions: str = "",
 ) -> Attribution:
-    """Atribuye cada bloque de ``response`` a las instrucciones de los prompts."""
+    """Atribuye cada bloque de ``response`` a las instrucciones de los prompts.
+
+    ``instructions`` son criterios opcionales del usuario sobre cómo evaluar
+    (qué cuenta como causa, cuándo dejar un bloque sin fuente, etc.); se añaden
+    al system prompt del juez.
+    """
     sources = prompt_units(system_prompt, user_prompt)
     segments = segment(response, "response", "R")
-    result = Attribution(system_prompt, user_prompt, response, sources, segments, [])
+    result = Attribution(
+        system_prompt, user_prompt, response, sources, segments, [], instructions=instructions.strip()
+    )
     if not segments:
         return result
     data = llm.json(
-        ATTRIBUTION_SYSTEM, build_attribution_request(sources, segments), ATTRIBUTION_SCHEMA, effort=effort
+        with_custom_instructions(ATTRIBUTION_SYSTEM, instructions),
+        build_attribution_request(sources, segments),
+        ATTRIBUTION_SCHEMA,
+        effort=effort,
     )
     judged = {item["id"]: item for item in data.get("segments", []) if "id" in item}
     missing = [s.id for s in segments if s.id not in judged]

@@ -1,10 +1,26 @@
 [project]
 name = "promptblame"
-version = "0.2.0"
+version = "0.3.0"
 description = "Atribución de respuestas de LLM a instrucciones del system prompt y del user prompt"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 requires-python = ">=3.10"
+authors = [{ name = "Marco Baleato Domínguez" }]
+keywords = ["llm", "prompt-engineering", "attribution", "explainability", "streamlit", "claude"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: Spanish",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = ["anthropic>=2.9.0,<3", "streamlit>=1.67"]
 
 [project.optional-dependencies]
@@ -12,6 +28,10 @@ openai = ["openai>=3.0"]
 gemini = ["google-genai>=1.51"]
 all = ["openai>=3.0", "google-genai>=1.51"]
 dev = ["pytest>=8", "openai>=3.0", "google-genai>=1.51"]
+
+[project.urls]
+Repository = "https://github.com/marcobd3/PromptBlame"
+Issues = "https://github.com/marcobd3/PromptBlame/issues"
 
 [tool.setuptools]
 packages = ["promptblame"]

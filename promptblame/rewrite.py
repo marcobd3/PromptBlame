@@ -5,7 +5,7 @@ from __future__ import annotations
 import difflib
 from dataclasses import dataclass
 
-from .attribution import Attribution
+from .attribution import Attribution, with_custom_instructions
 from .llm import LLM
 
 REWRITE_SCHEMA = {
@@ -95,8 +95,20 @@ def build_rewrite_request(attribution: Attribution, improvement: str) -> str:
     )
 
 
-def rewrite_system_prompt(llm: LLM, attribution: Attribution, improvement: str, effort: str = "high") -> Rewrite:
-    data = llm.json(REWRITE_SYSTEM, build_rewrite_request(attribution, improvement), REWRITE_SCHEMA, effort=effort)
+def rewrite_system_prompt(
+    llm: LLM, attribution: Attribution, improvement: str, effort: str = "high", instructions: str = ""
+) -> Rewrite:
+    """Genera una nueva versión del system prompt.
+
+    ``instructions`` son criterios opcionales del usuario (los mismos que guían
+    al juez de atribución) que se añaden al system prompt del reescritor.
+    """
+    data = llm.json(
+        with_custom_instructions(REWRITE_SYSTEM, instructions),
+        build_rewrite_request(attribution, improvement),
+        REWRITE_SCHEMA,
+        effort=effort,
+    )
     return Rewrite(
         new_system_prompt=data.get("new_system_prompt", ""),
         changes=data.get("changes", []),

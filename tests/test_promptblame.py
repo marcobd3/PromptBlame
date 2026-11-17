@@ -143,6 +143,25 @@ def test_verify_by_ablation_confirms_real_dependencies():
     assert effects["S2"].verified is False
 
 
+def test_custom_instructions_reach_judge_and_rewriter():
+    llm, judge_calls = fake_llm(judge_handler)
+    attr = attribute(llm, SYSTEM, USER, RESPONSE, instructions="  Ignora el tono.  ")
+    judge_system = judge_calls.calls[-1]["system"]
+    assert "<criterios_del_usuario>\nIgnora el tono.\n</criterios_del_usuario>" in judge_system
+    assert attr.instructions == "Ignora el tono."
+
+    rw_llm, rw_calls = fake_llm(
+        lambda kw: (json.dumps({"new_system_prompt": SYSTEM, "changes": [], "summary": ""}), "end_turn")
+    )
+    rewrite_system_prompt(rw_llm, attr, "Más corto", instructions="Ignora el tono.")
+    assert "Ignora el tono." in rw_calls.calls[-1]["system"]
+
+    # Sin instrucciones el prompt del juez no cambia.
+    llm, plain_calls = fake_llm(judge_handler)
+    attribute(llm, SYSTEM, USER, RESPONSE, instructions="   ")
+    assert "criterios_del_usuario" not in plain_calls.calls[-1]["system"]
+
+
 # --- Reescritura y vista ----------------------------------------------------------
 
 

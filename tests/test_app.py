@@ -11,7 +11,11 @@ def fake_text(self, system, user, effort="medium"):
     return "Lo siento por el retraso. ¿Me das tu número de pedido? ¿Te ayudo en algo más?"
 
 
+json_calls = []
+
+
 def fake_json(self, system, user, schema, effort="high"):
+    json_calls.append((system, schema))
     if "new_system_prompt" in schema["properties"]:
         return {"new_system_prompt": "Nuevo prompt.", "changes": [], "summary": "Hecho."}
     return {
@@ -39,10 +43,19 @@ def test_app_end_to_end(monkeypatch):
     assert at.session_state.attribution is not None
     assert len(at.session_state.attribution.blocks) == 3
 
-    at.text_area[3].input("Más breve").run()  # mejora (pestaña 2)
+    at.text_area(key="judge_instructions").input("Sé estricto con la confianza.").run()
+    assert at.session_state.attribution is None  # cambiar los criterios invalida la atribución
+    at.checkbox(key="instructions_in_rewrite").uncheck().run()
+
+    next(t for t in at.text_area if t.label == "¿Qué quieres mejorar?").input("Más breve").run()
     gen = next(b for b in at.button if b.label.startswith("Generar nueva versión"))
     gen.click().run()
     assert at.session_state.rewrite.new_system_prompt == "Nuevo prompt."
+    assert at.session_state.attribution.instructions == "Sé estricto con la confianza."
+    judge_systems = [s for s, schema in json_calls if "segments" in schema["properties"]]
+    rewrite_systems = [s for s, schema in json_calls if "new_system_prompt" in schema["properties"]]
+    assert "Sé estricto con la confianza." in judge_systems[-1]
+    assert "Sé estricto con la confianza." not in rewrite_systems[-1]
     adopt = next(b for b in at.button if b.label.startswith("Usar esta versión"))
     adopt.click().run()
     assert at.text_area(key="system_prompt").value == "Nuevo prompt."

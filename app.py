@@ -24,6 +24,11 @@ Si el cliente pregunta por un pedido, pide el número de pedido.
 No prometas plazos de entrega concretos.
 Termina cada respuesta ofreciendo más ayuda."""
 
+INSTRUCTIONS_PLACEHOLDER = """Ej.:
+- El tono y el idioma sólo cuentan como causa si la respuesta se aparta de lo habitual.
+- Considera conocimiento del modelo cualquier dato que no aparezca en los prompts.
+- Sé estricto: usa confianza "alta" sólo si la instrucción lo exige literalmente."""
+
 EXAMPLE_USER = "Hola, compré una bici eléctrica hace dos semanas y todavía no me ha llegado. ¿Cuándo la recibiré?"
 
 defaults = {
@@ -33,6 +38,8 @@ defaults = {
     "attribution": None,
     "rewrite": None,
     "versions": [],
+    "judge_instructions": "",
+    "instructions_in_rewrite": True,
 }
 for key, value in defaults.items():
     st.session_state.setdefault(key, value)
@@ -135,7 +142,13 @@ def current_attribution_is_fresh() -> bool:
         attr.system_prompt,
         attr.user_prompt,
         attr.response,
-    ) == (st.session_state.system_prompt, st.session_state.user_prompt, st.session_state.response)
+        attr.instructions,
+    ) == (
+        st.session_state.system_prompt,
+        st.session_state.user_prompt,
+        st.session_state.response,
+        st.session_state.judge_instructions.strip(),
+    )
 
 
 def compute_attribution() -> Attribution | None:
@@ -149,6 +162,7 @@ def compute_attribution() -> Attribution | None:
                 st.session_state.user_prompt,
                 st.session_state.response,
                 effort=judge_effort,
+                instructions=st.session_state.judge_instructions,
             )
         if use_ablation and attr.blocks:
             with st.spinner("Verificando por ablación (regenerando sin cada instrucción)…"):
@@ -186,6 +200,23 @@ def show_attribution_dialog() -> None:
 
 st.title("🔍 PromptBlame")
 st.caption("¿Qué instrucción de tu prompt produjo cada parte de la respuesta?")
+
+with st.expander("Instrucciones personalizadas de evaluación (opcional)", expanded=False):
+    st.text_area(
+        "Criterios para el juez",
+        key="judge_instructions",
+        height=130,
+        placeholder=INSTRUCTIONS_PLACEHOLDER,
+        on_change=invalidate_attribution,
+        help="Contexto y criterios sobre cómo evaluar las atribuciones: qué cuenta como causa, "
+        "qué ignorar, cómo de estricto ser con la confianza, el dominio del servicio… "
+        "Se añaden al prompt del juez de atribución.",
+    )
+    st.checkbox(
+        "Aplicarlas también al generar la nueva versión del system prompt",
+        key="instructions_in_rewrite",
+        help="El reescritor de la pestaña 2 recibe los mismos criterios.",
+    )
 
 tab_blame, tab_improve = st.tabs(["1 · Respuesta y atribución", "2 · Mejorar el system prompt"])
 
@@ -234,7 +265,15 @@ with tab_improve:
                 try:
                     with st.spinner("Reescribiendo el system prompt con el mapa de atribución…"):
                         st.session_state.rewrite = rewrite_system_prompt(
-                            judge_llm(), attr, improvement, effort=judge_effort
+                            judge_llm(),
+                            attr,
+                            improvement,
+                            effort=judge_effort,
+                            instructions=(
+                                st.session_state.judge_instructions
+                                if st.session_state.instructions_in_rewrite
+                                else ""
+                            ),
                         )
                 except LLMError as exc:
                     st.error(str(exc))
