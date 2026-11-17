@@ -1,4 +1,4 @@
-"""Comando ``promptblame``: abre la interfaz de Streamlit instalada con el paquete."""
+"""``promptblame`` command: opens the Streamlit UI bundled with the package."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def main(argv: list[str] | None = None) -> int:
         from streamlit.web import cli as stcli
     except ImportError:
         print(
-            'La interfaz necesita Streamlit. Instálala con: pip install "promptblame[app]"',
+            'The UI needs Streamlit. Install it with: pip install "promptblame[app]"',
             file=sys.stderr,
         )
         return 1
