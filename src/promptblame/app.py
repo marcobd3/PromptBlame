@@ -207,11 +207,40 @@ def show_attribution_dialog() -> None:
 st.title("🔍 PromptBlame")
 st.caption("¿Qué instrucción de tu prompt produjo cada parte de la respuesta?")
 
-with st.expander("Instrucciones personalizadas de evaluación (opcional)", expanded=False):
+tab_blame, tab_improve = st.tabs(["1 · Respuesta y atribución", "2 · Mejorar el system prompt"])
+
+with tab_blame:
+    # Flujo vertical: entrada → salida → atribución.
+    st.subheader("Entrada")
+    st.text_area("System prompt", key="system_prompt", height=200, on_change=invalidate_attribution)
+    st.text_area("User prompt", key="user_prompt", height=100, on_change=invalidate_attribution)
+    if st.button("Generar respuesta", type="primary"):
+        try:
+            with st.spinner(f"Llamando a {gen_model}…"):
+                st.session_state.response = gen_llm().text(
+                    st.session_state.system_prompt, st.session_state.user_prompt, effort=gen_effort
+                )
+            invalidate_attribution()
+            st.rerun()
+        except LLMError as exc:
+            st.error(str(exc))
+
+    st.divider()
+    st.subheader("Salida del servicio")
     st.text_area(
-        "Criterios para el juez",
+        "Respuesta",
+        key="response",
+        height=220,
+        on_change=invalidate_attribution,
+        help="También puedes pegar aquí una respuesta que ya tengas.",
+    )
+
+    st.divider()
+    st.subheader("Atribución")
+    st.text_area(
+        "Instrucciones de atribución (opcional)",
         key="judge_instructions",
-        height=130,
+        height=110,
         placeholder=INSTRUCTIONS_PLACEHOLDER,
         on_change=invalidate_attribution,
         help="Contexto y criterios sobre cómo evaluar las atribuciones: qué cuenta como causa, "
@@ -219,40 +248,14 @@ with st.expander("Instrucciones personalizadas de evaluación (opcional)", expan
         "Se añaden al prompt del juez de atribución.",
     )
     st.checkbox(
-        "Aplicarlas también al generar la nueva versión del system prompt",
+        "Aplicarlas también al generar la nueva versión del system prompt (pestaña 2)",
         key="instructions_in_rewrite",
         help="El reescritor de la pestaña 2 recibe los mismos criterios.",
     )
-
-tab_blame, tab_improve = st.tabs(["1 · Respuesta y atribución", "2 · Mejorar el system prompt"])
-
-with tab_blame:
-    col_in, col_out = st.columns(2)
-    with col_in:
-        st.subheader("Entrada")
-        st.text_area("System prompt", key="system_prompt", height=220, on_change=invalidate_attribution)
-        st.text_area("User prompt", key="user_prompt", height=120, on_change=invalidate_attribution)
-        if st.button("Generar respuesta", type="primary"):
-            try:
-                with st.spinner(f"Llamando a {gen_model}…"):
-                    st.session_state.response = gen_llm().text(
-                        st.session_state.system_prompt, st.session_state.user_prompt, effort=gen_effort
-                    )
-                invalidate_attribution()
-                st.rerun()
-            except LLMError as exc:
-                st.error(str(exc))
-    with col_out:
-        st.subheader("Salida del servicio")
-        st.text_area(
-            "Respuesta",
-            key="response",
-            height=388,
-            on_change=invalidate_attribution,
-            help="También puedes pegar aquí una respuesta que ya tengas.",
-        )
-        if st.button("Ver atribución", disabled=not st.session_state.response.strip()):
-            show_attribution_dialog()
+    if st.button("Ver atribución", type="primary", disabled=not st.session_state.response.strip()):
+        show_attribution_dialog()
+    if not st.session_state.response.strip():
+        st.caption("Genera o pega una respuesta para ver de qué instrucción viene cada bloque.")
 
 with tab_improve:
     if not st.session_state.response.strip():
