@@ -2,88 +2,95 @@
 
 # 🔍 PromptBlame
 
-**Descubre qué instrucción de tu prompt produjo cada parte de la respuesta de un LLM.**
+**Find out which instruction in your prompt produced each part of an LLM's response.**
+
+**English** · [Español](https://github.com/marcobd3/PromptBlame/blob/main/README.es.md)
 
 [![Tests](https://github.com/marcobd3/PromptBlame/actions/workflows/tests.yml/badge.svg)](https://github.com/marcobd3/PromptBlame/actions/workflows/tests.yml)
 [![PyPI](https://img.shields.io/pypi/v/promptblame?logo=pypi&logoColor=white)](https://pypi.org/project/promptblame/)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
-[![License: AGPL v3](https://img.shields.io/badge/licencia-AGPL--3.0-blue.svg)](https://github.com/marcobd3/PromptBlame/blob/main/LICENSE)
-[![Proveedores](https://img.shields.io/badge/LLM-Claude%20%C2%B7%20OpenAI%20%C2%B7%20Gemini%20%C2%B7%20Ollama-6E56CF)](#proveedores)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](https://github.com/marcobd3/PromptBlame/blob/main/LICENSE)
+[![Providers](https://img.shields.io/badge/LLM-Claude%20%C2%B7%20OpenAI%20%C2%B7%20Gemini%20%C2%B7%20Ollama-6E56CF)](#providers)
 
-[Inicio rápido](#inicio-rápido) ·
-[Uso](#uso) ·
-[Cómo funciona](#cómo-funciona) ·
-[Uso como librería](#uso-como-librería) ·
-[Desarrollo](#desarrollo)
+[Quick start](#quick-start) ·
+[Usage](#usage) ·
+[How it works](#how-it-works) ·
+[Library usage](#library-usage) ·
+[Development](#development)
 
 </div>
 
 ---
 
-PromptBlame es un **RAG inverso para prompts**. En lugar de recuperar contexto
-para generar una respuesta, parte de la respuesta y localiza qué instrucciones
-del *system prompt* y del *user prompt* la causaron. Con ese mapa propone una
-nueva versión del system prompt que toca sólo las instrucciones responsables.
+PromptBlame is **inverse RAG for prompts**. Instead of retrieving context to
+generate a response, it starts from the response and finds which instructions
+in the *system prompt* and the *user prompt* caused it. With that map it
+proposes a new version of the system prompt that only touches the responsible
+instructions.
 
-Funciona a nivel de **instrucción** y con **modelos cerrados**: no necesita
-logits, atención ni pesos, sólo la API del proveedor.
+It works at the **instruction** level and with **closed models**: it needs no
+logits, attention or weights, only the provider's API.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/vista-atribucion.png" alt="Ventana de atribución: la respuesta dividida en bloques de colores y, a la derecha, la cita del prompt de la que procede cada bloque" width="900">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/attribution-view.png" alt="Attribution window: the response split into coloured blocks and, on the right, the prompt quote each block comes from" width="900">
 </p>
 
-## Características
+## Features
 
-- **Atribución por bloques.** La respuesta se resalta en bloques de colores y
-  cada uno enlaza con la cita literal del system prompt o del user prompt de la
-  que procede, con su nivel de confianza y una explicación.
-- **Citas siempre literales.** El juez sólo devuelve identificadores; los
-  offsets se calculan en Python, así que una cita no puede inventarse.
-- **Instrucciones ignoradas a la vista.** Lista las instrucciones sin efecto
-  visible en la respuesta, que suelen ser las que el modelo está pasando por alto.
-- **Verificación por ablación (opcional).** Confirma cada atribución
-  regenerando la respuesta sin la instrucción citada.
-- **Criterios de evaluación propios.** Una caja de instrucciones personalizadas
-  para decirle al juez cómo evaluar: qué cuenta como causa, qué ignorar, cómo
-  de estricto ser.
-- **Mejora guiada del system prompt.** Describe lo que quieres cambiar y
-  obtienes una nueva versión, la tabla de cambios y el diff.
-- **Multiproveedor.** Claude (por defecto), OpenAI, Google Gemini y cualquier
-  endpoint compatible con la API de OpenAI (Ollama, OpenRouter, Mistral, Groq,
-  vLLM, LM Studio…). El modelo que responde y el modelo juez se eligen por
-  separado.
-- **Tema claro y oscuro**, siguiendo el de Streamlit.
+- **Block-level attribution.** The response is highlighted in coloured blocks,
+  each linked to the literal quote from the system prompt or user prompt it
+  comes from, with a confidence level and an explanation.
+- **Quotes are always literal.** The judge only returns identifiers; offsets
+  are computed in Python, so a quote cannot be made up.
+- **Ignored instructions in plain sight.** Lists the instructions with no
+  visible effect on the response, which are usually the ones the model is
+  skipping.
+- **Ablation check (optional).** Confirms each attribution by regenerating the
+  response without the cited instruction.
+- **Your own evaluation criteria.** A box of custom instructions to tell the
+  judge how to evaluate: what counts as a cause, what to ignore, how strict
+  to be.
+- **Guided system prompt improvement.** Describe what you want to change and
+  get a new version, a table of changes and the diff.
+- **Multi-provider.** Claude (default), OpenAI, Google Gemini and any endpoint
+  compatible with the OpenAI API (Ollama, OpenRouter, Mistral, Groq, vLLM,
+  LM Studio…). The model that responds and the judge model are chosen
+  separately.
+- **Light and dark theme**, following Streamlit's.
+- **English and Spanish interface.** Shown in Spanish if the browser is in
+  Spanish and in English otherwise; it can be changed in the sidebar. The judge
+  and the rewriter write their explanations in the same language.
 
-## Inicio rápido
+## Quick start
 
-Requisitos: Python 3.11 o superior y una API key del proveedor que vayas a usar
-(o un servidor local como Ollama, que no la necesita).
+Requirements: Python 3.11 or later and an API key for the provider you will use
+(or a local server such as Ollama, which needs none).
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install "promptblame[all]"
-export ANTHROPIC_API_KEY="sk-ant-..."   # o escríbela en la barra lateral
+export ANTHROPIC_API_KEY="sk-ant-..."   # or type it in the sidebar
 promptblame
 ```
 
-La app se abre en <http://localhost:8501> con un ejemplo cargado. Los
-argumentos se pasan a Streamlit, p. ej. `promptblame --server.port 8600`.
+The app opens at <http://localhost:8501> with an example loaded. Arguments are
+passed on to Streamlit, e.g. `promptblame --server.port 8600`.
 
 ### Extras
 
-El paquete base trae la librería y los SDK de Anthropic y de OpenAI, así que
-funciona con Claude, OpenAI y cualquier endpoint compatible con OpenAI (Ollama,
-OpenRouter, Mistral, vLLM…). Añade lo que necesites:
+The base package ships the library and the Anthropic and OpenAI SDKs, so it
+works with Claude, OpenAI and any OpenAI-compatible endpoint (Ollama,
+OpenRouter, Mistral, vLLM…). Add what you need:
 
 ```bash
-pip install promptblame                    # librería: Claude, OpenAI y compatibles
-pip install "promptblame[app]"             # + interfaz de Streamlit (comando promptblame)
+pip install promptblame                    # library: Claude, OpenAI and compatibles
+pip install "promptblame[app]"             # + Streamlit interface (promptblame command)
 pip install "promptblame[gemini]"          # + Google Gemini
-pip install "promptblame[all]"             # todo
+pip install "promptblame[all]"             # everything
 ```
 
-### Desde el código fuente
+### From source
 
 ```bash
 git clone https://github.com/marcobd3/PromptBlame.git
@@ -92,174 +99,178 @@ pip install -e ".[all]"
 streamlit run app.py
 ```
 
-`requirements.txt` instala el repositorio con todos los extras, para
-plataformas que sólo leen ese archivo (p. ej. Streamlit Community Cloud).
+`streamlit run app.py` always runs the code in `src/`, even if an older
+`promptblame` is installed. `requirements.txt` installs the repository with all
+extras, for platforms that only read that file (e.g. Streamlit Community Cloud).
 
-## Uso
+## Usage
 
-### 1 · Respuesta y atribución
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/pestana-1.png" alt="Pestaña 1 en vertical: entrada, salida del servicio y sección de atribución con sus instrucciones" width="900">
-</p>
-
-La pestaña se lee de arriba abajo: entrada, salida del servicio y atribución.
-
-1. Escribe un system prompt y un user prompt, y pulsa **Generar respuesta**.
-   La respuesta aparece debajo, en la caja de salida; también puedes pegar ahí
-   una respuesta que ya tengas.
-2. En la sección **Atribución**, debajo de la salida, añade si quieres tus
-   instrucciones de atribución y pulsa **Ver atribución**. Se abre una ventana con la respuesta dividida en
-   bloques de colores y, a la derecha, la cita de la que procede cada bloque.
-   Al pasar el ratón por un bloque se resalta su cita; al hacer clic se salta a ella.
-3. Los bloques grises no proceden de ninguna instrucción: son conocimiento
-   propio del modelo.
-
-### 2 · Mejorar el system prompt
+### 1 · Response and attribution
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/pestana-2.png" alt="Pestaña 2 con la mejora pedida, el resumen, la tabla de cambios y la nueva versión del system prompt" width="900">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/tab-1.png" alt="Tab 1: input on the left, service output on the right and, below, the attribution section with its instructions" width="900">
 </p>
 
-Toma la última respuesta, la mejora que describas y el mapa de atribución, y
-genera una nueva versión del system prompt con un resumen, la tabla de cambios
-(qué instrucción se modifica, elimina o añade y por qué) y el diff. Con **Usar
-esta versión en la pestaña 1** pasas a probarla; las versiones anteriores
-quedan guardadas en la sesión.
+The input is on the left, the service output on the right and, below both,
+the attribution section.
 
-### Instrucciones personalizadas de evaluación
+1. Write a system prompt and a user prompt, and click **Generate response**.
+   The response appears on the right, in the output box; you can also paste a
+   response you already have.
+2. In the **Attribution** section below, optionally add your attribution
+   instructions and click **View attribution**. A window opens with the
+   response split into coloured blocks and, on the right, the quote each block
+   comes from. Hovering over a block highlights its quote; clicking jumps to it.
+3. Grey blocks come from no instruction: they are the model's own knowledge.
 
-En la sección **Atribución** de la pestaña 1 hay una caja opcional para dar al
-juez contexto y criterios propios. Por ejemplo:
+### 2 · Improve the system prompt
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/tab-2.png" alt="Tab 2 with the requested improvement, the summary, the table of changes and the new system prompt" width="900">
+</p>
+
+Takes the last response, the improvement you describe and the attribution map,
+and generates a new version of the system prompt with a summary, the table of
+changes (which instruction is modified, removed or added, and why) and the
+diff. **Use this version in tab 1** lets you try it; previous versions are kept
+in the session.
+
+### Custom attribution instructions
+
+The **Attribution** section in tab 1 has an optional box to give the judge
+your own context and criteria. For example:
 
 ```text
-- El tono y el idioma sólo cuentan como causa si la respuesta se aparta de lo habitual.
-- Considera conocimiento del modelo cualquier dato que no aparezca en los prompts.
-- Sé estricto: usa confianza "alta" sólo si la instrucción lo exige literalmente.
+- Tone and language only count as a cause if the response departs from the usual.
+- Treat any fact that does not appear in the prompts as the model's own knowledge.
+- Be strict: use "high" confidence only if the instruction literally requires it.
 ```
 
-Los criterios se añaden al prompt del juez de atribución y, si dejas marcada la
-casilla, también al de la reescritura del system prompt. Cambiarlos invalida la
-atribución en caché, así que la siguiente consulta se evalúa con los nuevos
-criterios. El formato de salida y la regla de citar sólo identificadores
-existentes se mantienen siempre.
+The criteria are added to the attribution judge's prompt and, if the checkbox
+is ticked, to the system prompt rewriter's as well. Changing them invalidates
+the cached attribution, so the next run is evaluated with the new criteria. The
+output format and the rule of citing only existing identifiers always apply.
 
-### Configuración
+### Settings
 
-Todo se ajusta en la barra lateral:
+Everything is set in the sidebar:
 
-| Opción | Por defecto | Descripción |
+| Option | Default | Description |
 |---|---|---|
-| Proveedor y modelo del servicio | Anthropic, `claude-opus-5-5` | Genera la respuesta que se analiza y las regeneraciones de la ablación. |
-| Esfuerzo del servicio | `medium` | Esfuerzo de razonamiento de la generación. |
-| Proveedor y modelo del juez | Anthropic, `claude-opus-5-5` | Juez de atribución y reescritor del system prompt. |
-| Esfuerzo del juez | `high` | Más esfuerzo, atribuciones más finas. |
-| Credenciales | variables de entorno | API key de cada proveedor en uso y, para el endpoint compatible, su URL base. |
-| Verificar con ablación | desactivado | Confirma cada atribución regenerando sin la instrucción. |
-| Máx. instrucciones a ablacionar | `8` | Límite de regeneraciones (se eligen las más citadas). |
+| Language | the browser's (English unless it is Spanish) | Language of the interface and of the judge's and rewriter's explanations. |
+| Service provider and model | Anthropic, `claude-opus-5-5` | Generates the response being analysed and the ablation regenerations. |
+| Service effort | `medium` | Reasoning effort for generation. |
+| Judge provider and model | Anthropic, `claude-opus-5-5` | Attribution judge and system prompt rewriter. |
+| Judge effort | `high` | More effort, finer attributions. |
+| Credentials | environment variables | API key for each provider in use and, for the compatible endpoint, its base URL. |
+| Verify with ablation | off | Confirms each attribution by regenerating without the instruction. |
+| Max. instructions to ablate | `8` | Limit on regenerations (the most cited are chosen). |
 
-El servicio y el juez son independientes: puedes analizar la respuesta de un
-modelo local de Ollama con Claude como juez, o comparar cómo atribuyen dos
-proveedores la misma respuesta. La lista de modelos es una sugerencia; se
-puede escribir cualquier otro identificador.
+The service and the judge are independent: you can analyse a response from a
+local Ollama model with Claude as the judge, or compare how two providers
+attribute the same response. The model list is a suggestion; you can type any
+other identifier.
 
-### Proveedores
+### Providers
 
-| Proveedor | Variable de entorno | Salida estructurada del juez | Esfuerzo |
+| Provider | Environment variable | Judge structured output | Effort |
 |---|---|---|---|
-| Anthropic (Claude) | `ANTHROPIC_API_KEY` | `output_config.format` con JSON Schema | `output_config.effort` |
-| OpenAI | `OPENAI_API_KEY` | `response_format` `json_schema` estricto | `reasoning_effort` |
-| Google Gemini | `GEMINI_API_KEY` o `GOOGLE_API_KEY` | `response_json_schema` | `thinking_level` |
-| Compatible con OpenAI | `OPENAI_COMPATIBLE_API_KEY` (opcional), `OPENAI_COMPATIBLE_BASE_URL` | `json_schema` → `json_object` → esquema en el prompt | no se envía |
+| Anthropic (Claude) | `ANTHROPIC_API_KEY` | `output_config.format` with JSON Schema | `output_config.effort` |
+| OpenAI | `OPENAI_API_KEY` | strict `response_format` `json_schema` | `reasoning_effort` |
+| Google Gemini | `GEMINI_API_KEY` or `GOOGLE_API_KEY` | `response_json_schema` | `thinking_level` |
+| OpenAI-compatible | `OPENAI_COMPATIBLE_API_KEY` (optional), `OPENAI_COMPATIBLE_BASE_URL` | `json_schema` → `json_object` → schema in the prompt | not sent |
 
-URLs base habituales para el endpoint compatible:
+Common base URLs for the compatible endpoint:
 
-| Servicio | URL base |
+| Service | Base URL |
 |---|---|
-| Ollama (por defecto) | `http://localhost:11434/v1` |
+| Ollama (default) | `http://localhost:11434/v1` |
 | OpenRouter | `https://openrouter.ai/api/v1` |
 | Mistral | `https://api.mistral.ai/v1` |
 | Groq | `https://api.groq.com/openai/v1` |
 
-Con Claude Opus 5.5, Fable 5.2 y Sonnet 5.5 se activan los *fallbacks* del
-servidor: si el clasificador de seguridad rechaza una petición, la API la
-reintenta con otro modelo en la misma llamada.
+With Claude Opus 5.5, Fable 5.2 and Sonnet 5.5 server-side *fallbacks* are
+enabled: if the safety classifier rejects a request, the API retries it with
+another model within the same call.
 
-## Cómo funciona
+## How it works
 
 ```mermaid
 flowchart LR
-    P["System prompt<br/>+ user prompt"] --> SEG["Segmentación<br/>determinista"]
-    R["Respuesta"] --> SEG
-    SEG -->|"S1… U1… R1…"| J["Juez LLM<br/>(structured outputs)"]
-    C["Criterios<br/>personalizados"] -.-> J
-    J -->|"ids + confianza"| B["Agrupación<br/>en bloques"]
-    B --> A{"¿Ablación?"}
-    A -->|sí| V["Regenerar sin cada<br/>instrucción y comparar"]
-    A -->|no| M["Mapa de atribución"]
+    P["System prompt<br/>+ user prompt"] --> SEG["Deterministic<br/>segmentation"]
+    R["Response"] --> SEG
+    SEG -->|"S1… U1… R1…"| J["LLM judge<br/>(structured outputs)"]
+    C["Custom<br/>criteria"] -.-> J
+    J -->|"ids + confidence"| B["Grouping<br/>into blocks"]
+    B --> A{"Ablation?"}
+    A -->|yes| V["Regenerate without each<br/>instruction and compare"]
+    A -->|no| M["Attribution map"]
     V --> M
-    M --> UI["Vista por bloques"]
-    M --> RW["Reescritura del<br/>system prompt"]
+    M --> UI["Block view"]
+    M --> RW["System prompt<br/>rewrite"]
 ```
 
-**1. Segmentación.** Los prompts se dividen de forma determinista en
-instrucciones (líneas, viñetas y frases: `S1, S2…` para el system prompt,
-`U1, U2…` para el user prompt) y la respuesta en segmentos (`R1, R2…`), con
-sus offsets exactos en el texto original.
+**1. Segmentation.** The prompts are deterministically split into instructions
+(lines, bullets and sentences: `S1, S2…` for the system prompt, `U1, U2…` for
+the user prompt) and the response into segments (`R1, R2…`), with their exact
+offsets in the original text.
 
-**2. Juez LLM.** Un modelo juez recibe todas las unidades numeradas y devuelve,
-mediante *structured outputs*, las fuentes de cada segmento con una confianza
-(`alta`, `media`, `baja`) y una explicación. Como el modelo sólo devuelve
-identificadores, las citas son siempre literales; los identificadores que no
-existen se descartan. Los segmentos contiguos de un mismo párrafo con las
-mismas fuentes se agrupan en bloques.
+**2. LLM judge.** A judge model receives all the numbered units and returns,
+through *structured outputs*, the sources of each segment with a confidence
+(high, medium or low) and an explanation in the chosen language. Since the
+model only returns identifiers, quotes are always literal; identifiers that do
+not exist are discarded. Contiguous segments of the same paragraph with the
+same sources are grouped into blocks.
 
-**3. Verificación por ablación (opcional).** Por cada instrucción citada se
-regenera la respuesta *sin* esa instrucción y se mide cuánto cambia cada bloque
-que la cita:
+**3. Ablation check (optional).** For each cited instruction the response is
+regenerated *without* that instruction, and the change in each block that cites
+it is measured:
 
-$$\text{efecto}(B, S) = \text{sim}(B, \text{control}) - \text{sim}(B, \text{sin } S)$$
+$$\text{effect}(B, S) = \text{sim}(B, \text{control}) - \text{sim}(B, \text{without } S)$$
 
-donde *control* es otra generación con el prompt completo, lo que descuenta la
-variación natural entre generaciones. Un efecto ≥ 0,15 marca la atribución como
-**confirmada**. Cuesta una llamada por instrucción más una de control, en paralelo.
+where *control* is another generation with the full prompt, which discounts the
+natural variation between generations. An effect ≥ 0.15 marks the attribution
+as **confirmed**. It costs one call per instruction plus a control call, run in
+parallel.
 
-**4. Reescritura.** El mapa de atribución (bloques, causas, confianza, efecto de
-ablación e instrucciones sin efecto) se pasa al reescritor junto con la mejora
-pedida. El reescritor cambia primero las instrucciones que causan los bloques
-afectados, refuerza las que no tuvieron efecto y deja intacto lo demás.
+**4. Rewrite.** The attribution map (blocks, causes, confidence, ablation
+effect and instructions with no effect) is passed to the rewriter together with
+the requested improvement. The rewriter first changes the instructions that
+cause the affected blocks, reinforces those that had no effect and leaves the
+rest untouched.
 
-## Arquitectura
+## Architecture
 
 ```text
 PromptBlame/
-├── app.py                        # Atajo para `streamlit run app.py` desde el repositorio
+├── app.py                        # Shortcut for `streamlit run app.py` from the repository
 ├── src/promptblame/
-│   ├── __init__.py               # API pública y versión
-│   ├── segmentation.py           # Segmentación determinista en unidades con offsets
-│   ├── llm.py                    # Cliente multiproveedor: texto y JSON estructurado
-│   ├── attribution.py            # Juez LLM, agrupación en bloques y ablación
-│   ├── rewrite.py                # Reescritura del system prompt y diff
-│   ├── render.py                 # Vista HTML de bloques de colores y citas
-│   ├── app.py                    # Interfaz de Streamlit (extra [app])
-│   └── cli.py                    # Comando `promptblame`
-├── tests/                        # Tests con los clientes de los proveedores simulados
-└── docs/                         # Capturas
+│   ├── __init__.py               # Public API and version
+│   ├── segmentation.py           # Deterministic segmentation into units with offsets
+│   ├── llm.py                    # Multi-provider client: text and structured JSON
+│   ├── attribution.py            # LLM judge, grouping into blocks and ablation
+│   ├── rewrite.py                # System prompt rewrite and diff
+│   ├── render.py                 # HTML view of coloured blocks and quotes
+│   ├── app.py                    # Streamlit interface ([app] extra)
+│   ├── i18n.py                   # Interface texts in English and Spanish
+│   └── cli.py                    # `promptblame` command
+├── tests/                        # Tests with simulated provider clients
+└── docs/                         # Screenshots (English; Spanish in docs/es/)
 ```
 
-La librería no depende de Streamlit: la interfaz es una capa fina sobre ella y
-se instala con el extra `[app]`.
+The library does not depend on Streamlit: the interface is a thin layer on top
+of it and is installed with the `[app]` extra.
 
-## Uso como librería
+## Library usage
 
 ```python
 from promptblame import LLM, attribute, rewrite_system_prompt, unified_diff, verify_by_ablation
 
-judge = LLM(model="claude-opus-5-5")  # lee ANTHROPIC_API_KEY
+judge = LLM(model="claude-opus-5-5")  # reads ANTHROPIC_API_KEY
 service = LLM(model="gpt-6.1-sol", provider="openai")
 
-system_prompt = "Eres un asistente de soporte.\nResponde siempre en español."
-user_prompt = "¿Dónde está mi pedido?"
+system_prompt = "You are a support assistant.\nAlways reply in English."
+user_prompt = "Where is my order?"
 response = service.text(system_prompt, user_prompt)
 
 attr = attribute(
@@ -267,83 +278,84 @@ attr = attribute(
     system_prompt,
     user_prompt,
     response,
-    instructions="Considera conocimiento del modelo cualquier dato que no esté en los prompts.",
+    instructions="Treat any fact that is not in the prompts as the model's own knowledge.",
+    language="en",  # language of the explanations: "en" (default) or "es"
 )
-verify_by_ablation(service, attr)  # opcional
+verify_by_ablation(service, attr)  # optional
 
 for block in attr.blocks:
     sources = ", ".join(f"{link.unit.id} ({link.confidence})" for link in block.sources)
-    print(f"{block.id}: {block.text!r} ← {sources or 'conocimiento del modelo'}")
+    print(f"{block.id}: {block.text!r} ← {sources or 'model knowledge'}")
 
-print("Sin efecto:", [u.id for u in attr.unused_sources])
+print("No effect:", [u.id for u in attr.unused_sources])
 
-result = rewrite_system_prompt(judge, attr, "Que pida el número de pedido.")
+result = rewrite_system_prompt(judge, attr, "Ask for the order number.")
 print(unified_diff(system_prompt, result.new_system_prompt))
 ```
 
-## Desarrollo
+## Development
 
 ```bash
-pip install -e ".[all]" --group dev   # pip 25.1 o superior
+pip install -e ".[all]" --group dev   # pip 25.1 or later
 ruff check . && ruff format --check .
 mypy
 pytest
 ```
 
-Los tests simulan los clientes de cada proveedor, así que no necesitan API key
-ni gastan tokens. Cubren la segmentación, el juez, la agrupación en bloques, la
-ablación, la reescritura, la vista HTML, los cuatro proveedores, los casos de
-seguridad y un recorrido completo de la interfaz con `streamlit.testing`. En
-GitHub Actions se ejecutan con Python 3.11 a 3.13, junto con ruff, mypy y la
-construcción del paquete, en cada *push* y *pull request*.
+The tests simulate each provider's client, so they need no API key and spend no
+tokens. They cover segmentation, the judge, grouping into blocks, ablation, the
+rewrite, the HTML view, the four providers, the security cases, both interface
+languages and a full run through the interface with `streamlit.testing`. On
+GitHub Actions they run on Python 3.11 to 3.13, together with ruff, mypy and the
+package build, on every *push* and *pull request*.
 
-### Publicar una versión
+### Releasing a version
 
-1. Sube `__version__` en `src/promptblame/__init__.py` y anota los cambios en
+1. Bump `__version__` in `src/promptblame/__init__.py` and note the changes in
    `CHANGELOG.md`.
-2. Crea en GitHub una release con la etiqueta `vX.Y.Z` (la misma versión).
-3. El workflow `publish.yml` construye el paquete y lo publica en PyPI con
-   *Trusted Publishing*, sin tokens guardados. Falla si la etiqueta no coincide
-   con la versión.
+2. Create a GitHub release tagged `vX.Y.Z` (the same version).
+3. The `publish.yml` workflow builds the package and publishes it to PyPI with
+   *Trusted Publishing*, with no stored tokens. It fails if the tag does not
+   match the version.
 
-## Seguridad
+## Security
 
-- **API keys.** Las keys del entorno (`ANTHROPIC_API_KEY`, etc.) se leen en el
-  servidor y nunca se envían al navegador. Las que se escriben en la barra
-  lateral sólo viven en la sesión de Streamlit y no se guardan ni se registran.
-- **Despliegues públicos.** Si publicas la app con una key en el entorno,
-  cualquier visitante gastará tu cuota. En ese caso no definas keys en el
-  servidor y deja que cada usuario escriba la suya, o protege la app con
-  autenticación. El proveedor «compatible» hace que el servidor llame a la URL
-  que escriba el usuario (sólo `http`/`https`); no lo expongas en una red con
-  servicios internos.
-- **Contenido no confiable.** Prompts y respuestas se escapan en la vista HTML,
-  la respuesta se muestra como texto (no como Markdown, para que no cargue
-  imágenes externas) y la salida JSON de los modelos se valida antes de usarla.
-  Los prompts del juez y del reescritor les indican que traten el contenido
-  analizado como datos, aunque ningún modelo es inmune a la inyección de
-  prompts.
+- **API keys.** Keys from the environment (`ANTHROPIC_API_KEY`, etc.) are read
+  on the server and never sent to the browser. Keys typed in the sidebar only
+  live in the Streamlit session and are neither stored nor logged.
+- **Public deployments.** If you publish the app with a key in the environment,
+  every visitor will spend your quota. In that case do not set keys on the
+  server and let each user type their own, or protect the app with
+  authentication. The "compatible" provider makes the server call whatever URL
+  the user types (only `http`/`https`); do not expose it on a network with
+  internal services.
+- **Untrusted content.** Prompts and responses are escaped in the HTML view,
+  the response is shown as text (not Markdown, so it cannot load external
+  images) and the models' JSON output is validated before use. The judge and
+  rewriter prompts tell them to treat the analysed content as data, although
+  no model is immune to prompt injection.
 
-Para informar de una vulnerabilidad, consulta [SECURITY.md](https://github.com/marcobd3/PromptBlame/blob/main/SECURITY.md).
+To report a vulnerability, see [SECURITY.md](https://github.com/marcobd3/PromptBlame/blob/main/SECURITY.md).
 
-## Limitaciones conocidas
+## Known limitations
 
-- La atribución del juez es una hipótesis del propio modelo. La ablación la
-  contrasta, pero mide similitud léxica, no semántica.
-- Las instrucciones redundantes pueden no superar la ablación aunque influyan:
-  si dos instrucciones piden lo mismo, quitar una sola no cambia la respuesta.
-- La segmentación por frases es heurística y está pensada para español e inglés.
-- Con modelos pequeños o sin salida estructurada estricta, el juez puede
-  devolver identificadores de más o de menos; se descartan los que no existen
-  y se avisa de los segmentos sin atribución.
+- The judge's attribution is the model's own hypothesis. Ablation tests it, but
+  it measures lexical, not semantic, similarity.
+- Redundant instructions may fail ablation even if they have an influence: if
+  two instructions ask for the same thing, removing only one does not change
+  the response.
+- Sentence segmentation is heuristic and designed for English and Spanish.
+- With small models or without strict structured output, the judge may return
+  too many or too few identifiers; non-existent ones are discarded and segments
+  without attribution are flagged.
 
-## Contribuir
+## Contributing
 
-Las *issues* y *pull requests* son bienvenidas. Antes de abrir una PR, ejecuta
-`ruff`, `mypy` y `pytest`, y añade tests para el comportamiento nuevo.
+Issues and pull requests are welcome. Before opening a PR, run `ruff`, `mypy`
+and `pytest`, and add tests for new behaviour.
 
-## Licencia
+## License
 
-Distribuido bajo la licencia [GNU AGPL-3.0](https://github.com/marcobd3/PromptBlame/blob/main/LICENSE). Si ofreces una versión
-modificada de PromptBlame como servicio en red, debes publicar el código fuente
-de tus cambios.
+Distributed under the [GNU AGPL-3.0](https://github.com/marcobd3/PromptBlame/blob/main/LICENSE) license. If you offer a
+modified version of PromptBlame as a network service, you must publish the
+source code of your changes.

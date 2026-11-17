@@ -79,9 +79,9 @@ def test_providers_registry():
 
 
 def test_unknown_provider_and_missing_base_url():
-    with pytest.raises(LLMError, match="desconocido"):
+    with pytest.raises(LLMError, match="Unknown provider"):
         LLM(model="x", provider="nope", client=object())
-    with pytest.raises(LLMError, match="URL base"):
+    with pytest.raises(LLMError, match="base URL"):
         LLM(model="llama3.3", provider="compatible")
 
 
@@ -123,10 +123,10 @@ def test_openai_json_uses_strict_schema_for_attribution():
 
 def test_openai_refusal_and_length():
     llm, _ = fake_openai(lambda kw: _openai_response(None, refusal="No."))
-    with pytest.raises(LLMError, match="rechazó"):
+    with pytest.raises(LLMError, match="refused"):
         llm.text("", "u")
     llm, _ = fake_openai(lambda kw: _openai_response("cort", finish="length"))
-    with pytest.raises(LLMError, match="cortó"):
+    with pytest.raises(LLMError, match="cut off"):
         llm.text("", "u")
 
 
@@ -180,7 +180,7 @@ def test_gemini_text_without_system_or_thinking_for_old_models():
 
 def test_gemini_max_tokens_and_api_errors():
     llm, _ = fake_gemini(lambda kw: _gemini_response("cort", finish="FinishReason.MAX_TOKENS"))
-    with pytest.raises(LLMError, match="cortó"):
+    with pytest.raises(LLMError, match="cut off"):
         llm.text("", "u")
 
     from google.genai import errors
@@ -189,5 +189,5 @@ def test_gemini_max_tokens_and_api_errors():
         raise errors.ClientError(404, {"error": {"code": 404, "message": "no existe", "status": "NOT_FOUND"}})
 
     llm, _ = fake_gemini(boom, model="gemini-99")
-    with pytest.raises(LLMError, match="no está disponible"):
+    with pytest.raises(LLMError, match="not available"):
         llm.text("", "u")

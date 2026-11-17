@@ -9,10 +9,21 @@ Primera versión preparada para PyPI.
 
 ### Cambiado
 
-- La pestaña 1 se organiza en vertical: entrada, salida del servicio y, debajo,
-  la sección de atribución con la caja de instrucciones para el juez (antes era
-  un desplegable encima de las pestañas). Las citas siguen abriéndose en una
-  ventana emergente.
+- La pestaña 1 muestra la entrada a la izquierda, la salida del servicio a la
+  derecha y, debajo de ambas, la sección de atribución con la caja de
+  instrucciones para el juez (antes era un desplegable encima de las
+  pestañas). Las citas siguen abriéndose en una ventana emergente.
+- Interfaz en inglés por defecto y en español si el navegador está en español,
+  con selector de idioma en la barra lateral. `attribute()` y
+  `rewrite_system_prompt()` aceptan `language` ("en" por defecto o "es") para
+  el idioma de las explicaciones, y los mensajes de `LLMError` pasan a inglés.
+- README en inglés; la versión en español está en `README.es.md`.
+
+### Corregido
+
+- `streamlit run app.py` ejecuta siempre el código de `src/` y no una versión
+  de `promptblame` instalada antes (`pip install .` sin `-e`, o la caché de
+  Streamlit Community Cloud).
 
 ### Añadido
 
