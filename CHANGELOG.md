@@ -7,6 +7,13 @@ el proyecto usa [versionado semántico](https://semver.org/lang/es/).
 
 Primera versión preparada para PyPI.
 
+### Cambiado
+
+- La pestaña 1 se organiza en vertical: entrada, salida del servicio y, debajo,
+  la sección de atribución con la caja de instrucciones para el juez (antes era
+  un desplegable encima de las pestañas). Las citas siguen abriéndose en una
+  ventana emergente.
+
 ### Añadido
 
 - Paquete instalable con `pip install promptblame` y comando `promptblame`

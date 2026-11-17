@@ -34,6 +34,10 @@ def test_app_end_to_end(monkeypatch):
 
     at = AppTest.from_file(str(Path(__file__).parent.parent / "app.py"), default_timeout=30).run()
     assert not at.exception
+    # Pestaña 1 en vertical: entrada, salida y, debajo, la atribución con sus criterios.
+    keys = [t.key for t in at.tabs[0].text_area]
+    assert keys == ["system_prompt", "user_prompt", "response", "judge_instructions"]
+    assert not at.expander  # los criterios ya no van en un desplegable sobre las pestañas
 
     at.button[0].click().run()  # Generar respuesta
     assert at.text_area(key="response").value.startswith("Lo siento")

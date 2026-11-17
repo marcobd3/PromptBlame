@@ -100,12 +100,16 @@ plataformas que sólo leen ese archivo (p. ej. Streamlit Community Cloud).
 ### 1 · Respuesta y atribución
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/pestana-1.png" alt="Pestaña 1 con las instrucciones personalizadas de evaluación desplegadas, el system prompt, el user prompt y la respuesta" width="900">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/pestana-1.png" alt="Pestaña 1 en vertical: entrada, salida del servicio y sección de atribución con sus instrucciones" width="900">
 </p>
 
+La pestaña se lee de arriba abajo: entrada, salida del servicio y atribución.
+
 1. Escribe un system prompt y un user prompt, y pulsa **Generar respuesta**.
-   También puedes pegar en la caja de salida una respuesta que ya tengas.
-2. Pulsa **Ver atribución**. Se abre una ventana con la respuesta dividida en
+   La respuesta aparece debajo, en la caja de salida; también puedes pegar ahí
+   una respuesta que ya tengas.
+2. En la sección **Atribución**, debajo de la salida, añade si quieres tus
+   instrucciones de atribución y pulsa **Ver atribución**. Se abre una ventana con la respuesta dividida en
    bloques de colores y, a la derecha, la cita de la que procede cada bloque.
    Al pasar el ratón por un bloque se resalta su cita; al hacer clic se salta a ella.
 3. Los bloques grises no proceden de ninguna instrucción: son conocimiento
@@ -125,8 +129,8 @@ quedan guardadas en la sesión.
 
 ### Instrucciones personalizadas de evaluación
 
-Encima de las pestañas hay un desplegable opcional para dar al juez contexto y
-criterios propios. Por ejemplo:
+En la sección **Atribución** de la pestaña 1 hay una caja opcional para dar al
+juez contexto y criterios propios. Por ejemplo:
 
 ```text
 - El tono y el idioma sólo cuentan como causa si la respuesta se aparta de lo habitual.
