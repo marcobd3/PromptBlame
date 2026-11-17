@@ -5,9 +5,10 @@
 **Descubre qué instrucción de tu prompt produjo cada parte de la respuesta de un LLM.**
 
 [![Tests](https://github.com/marcobd3/PromptBlame/actions/workflows/tests.yml/badge.svg)](https://github.com/marcobd3/PromptBlame/actions/workflows/tests.yml)
+[![PyPI](https://img.shields.io/pypi/v/promptblame?logo=pypi&logoColor=white)](https://pypi.org/project/promptblame/)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
-[![License: AGPL v3](https://img.shields.io/badge/licencia-AGPL--3.0-blue.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/licencia-AGPL--3.0-blue.svg)](https://github.com/marcobd3/PromptBlame/blob/main/LICENSE)
 [![Proveedores](https://img.shields.io/badge/LLM-Claude%20%C2%B7%20OpenAI%20%C2%B7%20Gemini%20%C2%B7%20Ollama-6E56CF)](#proveedores)
 
 [Inicio rápido](#inicio-rápido) ·
@@ -29,7 +30,7 @@ Funciona a nivel de **instrucción** y con **modelos cerrados**: no necesita
 logits, atención ni pesos, sólo la API del proveedor.
 
 <p align="center">
-  <img src="docs/vista-atribucion.png" alt="Ventana de atribución: la respuesta dividida en bloques de colores y, a la derecha, la cita del prompt de la que procede cada bloque" width="900">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/vista-atribucion.png" alt="Ventana de atribución: la respuesta dividida en bloques de colores y, a la derecha, la cita del prompt de la que procede cada bloque" width="900">
 </p>
 
 ## Características
@@ -60,34 +61,45 @@ Requisitos: Python 3.11 o superior y una API key del proveedor que vayas a usar
 (o un servidor local como Ollama, que no la necesita).
 
 ```bash
+python -m venv .venv && source .venv/bin/activate
+pip install "promptblame[all]"
+export ANTHROPIC_API_KEY="sk-ant-..."   # o escríbela en la barra lateral
+promptblame
+```
+
+La app se abre en <http://localhost:8501> con un ejemplo cargado. Los
+argumentos se pasan a Streamlit, p. ej. `promptblame --server.port 8600`.
+
+### Extras
+
+El paquete base sólo trae la librería y el SDK de Anthropic. Instala lo que uses:
+
+```bash
+pip install promptblame                    # librería, sólo Claude
+pip install "promptblame[app]"             # + interfaz de Streamlit (comando promptblame)
+pip install "promptblame[openai]"          # + OpenAI y endpoints compatibles
+pip install "promptblame[gemini]"          # + Google Gemini
+pip install "promptblame[all]"             # todo
+```
+
+### Desde el código fuente
+
+```bash
 git clone https://github.com/marcobd3/PromptBlame.git
 cd PromptBlame
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY="sk-ant-..."   # o escríbela en la barra lateral
+pip install -e ".[all]"
 streamlit run app.py
 ```
 
-La app se abre en <http://localhost:8501> con un ejemplo cargado.
-
-### Instalación mínima con extras
-
-`requirements.txt` instala los SDK de todos los proveedores. Si prefieres
-instalar sólo lo que uses:
-
-```bash
-pip install .              # sólo Claude
-pip install ".[openai]"    # + OpenAI y endpoints compatibles
-pip install ".[gemini]"    # + Google Gemini
-pip install ".[all]"       # todos
-```
+`requirements.txt` instala el repositorio con todos los extras, para
+plataformas que sólo leen ese archivo (p. ej. Streamlit Community Cloud).
 
 ## Uso
 
 ### 1 · Respuesta y atribución
 
 <p align="center">
-  <img src="docs/pestana-1.png" alt="Pestaña 1 con las instrucciones personalizadas de evaluación desplegadas, el system prompt, el user prompt y la respuesta" width="900">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/pestana-1.png" alt="Pestaña 1 con las instrucciones personalizadas de evaluación desplegadas, el system prompt, el user prompt y la respuesta" width="900">
 </p>
 
 1. Escribe un system prompt y un user prompt, y pulsa **Generar respuesta**.
@@ -101,7 +113,7 @@ pip install ".[all]"       # todos
 ### 2 · Mejorar el system prompt
 
 <p align="center">
-  <img src="docs/pestana-2.png" alt="Pestaña 2 con la mejora pedida, el resumen, la tabla de cambios y la nueva versión del system prompt" width="900">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/pestana-2.png" alt="Pestaña 2 con la mejora pedida, el resumen, la tabla de cambios y la nueva versión del system prompt" width="900">
 </p>
 
 Toma la última respuesta, la mejora que describas y el mapa de atribución, y
@@ -216,28 +228,29 @@ afectados, refuerza las que no tuvieron efecto y deja intacto lo demás.
 
 ```text
 PromptBlame/
-├── app.py                    # Interfaz de Streamlit (dos pestañas y ventana de atribución)
-├── promptblame/
-│   ├── segmentation.py       # Segmentación determinista en unidades con offsets
-│   ├── llm.py                # Cliente multiproveedor: texto y JSON estructurado
-│   ├── attribution.py        # Juez LLM, agrupación en bloques y ablación
-│   ├── rewrite.py            # Reescritura del system prompt y diff
-│   └── render.py             # Vista HTML de bloques de colores y citas
-├── tests/                    # Tests con los clientes de los proveedores simulados
-└── docs/                     # Capturas
+├── app.py                        # Atajo para `streamlit run app.py` desde el repositorio
+├── src/promptblame/
+│   ├── __init__.py               # API pública y versión
+│   ├── segmentation.py           # Segmentación determinista en unidades con offsets
+│   ├── llm.py                    # Cliente multiproveedor: texto y JSON estructurado
+│   ├── attribution.py            # Juez LLM, agrupación en bloques y ablación
+│   ├── rewrite.py                # Reescritura del system prompt y diff
+│   ├── render.py                 # Vista HTML de bloques de colores y citas
+│   ├── app.py                    # Interfaz de Streamlit (extra [app])
+│   └── cli.py                    # Comando `promptblame`
+├── tests/                        # Tests con los clientes de los proveedores simulados
+└── docs/                         # Capturas
 ```
 
-El paquete `promptblame` no depende de Streamlit: la interfaz es una capa fina
-sobre él.
+La librería no depende de Streamlit: la interfaz es una capa fina sobre ella y
+se instala con el extra `[app]`.
 
 ## Uso como librería
 
 ```python
-from promptblame.attribution import attribute, verify_by_ablation
-from promptblame.llm import LLM
-from promptblame.rewrite import rewrite_system_prompt, unified_diff
+from promptblame import LLM, attribute, rewrite_system_prompt, unified_diff, verify_by_ablation
 
-judge = LLM(model="claude-opus-5-5")             # lee ANTHROPIC_API_KEY
+judge = LLM(model="claude-opus-5-5")  # lee ANTHROPIC_API_KEY
 service = LLM(model="gpt-6.1-sol", provider="openai")
 
 system_prompt = "Eres un asistente de soporte.\nResponde siempre en español."
@@ -245,10 +258,13 @@ user_prompt = "¿Dónde está mi pedido?"
 response = service.text(system_prompt, user_prompt)
 
 attr = attribute(
-    judge, system_prompt, user_prompt, response,
+    judge,
+    system_prompt,
+    user_prompt,
+    response,
     instructions="Considera conocimiento del modelo cualquier dato que no esté en los prompts.",
 )
-verify_by_ablation(service, attr)                # opcional
+verify_by_ablation(service, attr)  # opcional
 
 for block in attr.blocks:
     sources = ", ".join(f"{link.unit.id} ({link.confidence})" for link in block.sources)
@@ -263,15 +279,47 @@ print(unified_diff(system_prompt, result.new_system_prompt))
 ## Desarrollo
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e ".[all]" --group dev   # pip 25.1 o superior
+ruff check . && ruff format --check .
+mypy
 pytest
 ```
 
 Los tests simulan los clientes de cada proveedor, así que no necesitan API key
 ni gastan tokens. Cubren la segmentación, el juez, la agrupación en bloques, la
-ablación, la reescritura, la vista HTML, los cuatro proveedores y un recorrido
-completo de la interfaz con `streamlit.testing`. Se ejecutan en GitHub Actions
-con Python 3.11 a 3.13 en cada *push* y *pull request*.
+ablación, la reescritura, la vista HTML, los cuatro proveedores, los casos de
+seguridad y un recorrido completo de la interfaz con `streamlit.testing`. En
+GitHub Actions se ejecutan con Python 3.11 a 3.13, junto con ruff, mypy y la
+construcción del paquete, en cada *push* y *pull request*.
+
+### Publicar una versión
+
+1. Sube `__version__` en `src/promptblame/__init__.py` y anota los cambios en
+   `CHANGELOG.md`.
+2. Crea en GitHub una release con la etiqueta `vX.Y.Z` (la misma versión).
+3. El workflow `publish.yml` construye el paquete y lo publica en PyPI con
+   *Trusted Publishing*, sin tokens guardados. Falla si la etiqueta no coincide
+   con la versión.
+
+## Seguridad
+
+- **API keys.** Las keys del entorno (`ANTHROPIC_API_KEY`, etc.) se leen en el
+  servidor y nunca se envían al navegador. Las que se escriben en la barra
+  lateral sólo viven en la sesión de Streamlit y no se guardan ni se registran.
+- **Despliegues públicos.** Si publicas la app con una key en el entorno,
+  cualquier visitante gastará tu cuota. En ese caso no definas keys en el
+  servidor y deja que cada usuario escriba la suya, o protege la app con
+  autenticación. El proveedor «compatible» hace que el servidor llame a la URL
+  que escriba el usuario (sólo `http`/`https`); no lo expongas en una red con
+  servicios internos.
+- **Contenido no confiable.** Prompts y respuestas se escapan en la vista HTML,
+  la respuesta se muestra como texto (no como Markdown, para que no cargue
+  imágenes externas) y la salida JSON de los modelos se valida antes de usarla.
+  Los prompts del juez y del reescritor les indican que traten el contenido
+  analizado como datos, aunque ningún modelo es inmune a la inyección de
+  prompts.
+
+Para informar de una vulnerabilidad, consulta [SECURITY.md](https://github.com/marcobd3/PromptBlame/blob/main/SECURITY.md).
 
 ## Limitaciones conocidas
 
@@ -287,10 +335,10 @@ con Python 3.11 a 3.13 en cada *push* y *pull request*.
 ## Contribuir
 
 Las *issues* y *pull requests* son bienvenidas. Antes de abrir una PR, ejecuta
-`pytest` y añade tests para el comportamiento nuevo.
+`ruff`, `mypy` y `pytest`, y añade tests para el comportamiento nuevo.
 
 ## Licencia
 
-Distribuido bajo la licencia [GNU AGPL-3.0](LICENSE). Si ofreces una versión
+Distribuido bajo la licencia [GNU AGPL-3.0](https://github.com/marcobd3/PromptBlame/blob/main/LICENSE). Si ofreces una versión
 modificada de PromptBlame como servicio en red, debes publicar el código fuente
 de tus cambios.

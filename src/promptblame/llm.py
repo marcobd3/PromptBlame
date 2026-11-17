@@ -15,13 +15,16 @@ falta instalarlos si se trabaja únicamente con Claude.
 from __future__ import annotations
 
 import json
+import os
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit
 
 import anthropic
 
-EFFORTS = ["low", "medium", "high", "xhigh", "max"]
+EFFORTS: tuple[str, ...] = ("low", "medium", "high", "xhigh", "max")
+JSONSchema = dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -30,9 +33,9 @@ class Provider:
     label: str
     # Modelos sugeridos en la interfaz (se puede escribir cualquier otro). El
     # primero es el predeterminado.
-    models: list[str]
+    models: tuple[str, ...]
     # Variables de entorno de las que se lee la API key, por orden.
-    env_keys: list[str] = field(default_factory=list)
+    env_keys: tuple[str, ...] = ()
     # Si el proveedor tiene un ajuste equivalente al esfuerzo de razonamiento.
     supports_effort: bool = True
     # Si hace falta indicar la URL base del endpoint.
@@ -49,29 +52,29 @@ PROVIDERS: dict[str, Provider] = {
         Provider(
             "anthropic",
             "Anthropic (Claude)",
-            ["claude-opus-5-5", "claude-fable-5-2", "claude-sonnet-5-5", "claude-haiku-5-5"],
-            ["ANTHROPIC_API_KEY"],
+            ("claude-opus-5-5", "claude-fable-5-2", "claude-sonnet-5-5", "claude-haiku-5-5"),
+            ("ANTHROPIC_API_KEY",),
             short="Anthropic",
         ),
         Provider(
             "openai",
             "OpenAI",
-            ["gpt-6.1-sol", "gpt-6-astra", "gpt-6.1-terra", "gpt-6-luna"],
-            ["OPENAI_API_KEY"],
+            ("gpt-6.1-sol", "gpt-6-astra", "gpt-6.1-terra", "gpt-6-luna"),
+            ("OPENAI_API_KEY",),
             short="OpenAI",
         ),
         Provider(
             "gemini",
             "Google Gemini",
-            ["gemini-4-argon", "gemini-3.1-pro-preview", "gemini-3.8-flash", "gemini-3.5-flash-lite"],
-            ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
+            ("gemini-4-argon", "gemini-3.1-pro-preview", "gemini-3.8-flash", "gemini-3.5-flash-lite"),
+            ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
             short="Gemini",
         ),
         Provider(
             "compatible",
             "Compatible con OpenAI (Ollama, OpenRouter, Mistral…)",
-            ["llama3.3", "qwen3", "mistral-large-latest"],
-            ["OPENAI_COMPATIBLE_API_KEY"],
+            ("llama3.3", "qwen3", "mistral-large-latest"),
+            ("OPENAI_COMPATIBLE_API_KEY",),
             supports_effort=False,
             needs_base_url=True,
             key_required=False,
@@ -84,7 +87,7 @@ DEFAULT_PROVIDER = "anthropic"
 DEFAULT_BASE_URL = "http://localhost:11434/v1"  # Ollama
 
 # Compatibilidad con código que importaba estas constantes.
-MODELS = PROVIDERS["anthropic"].models
+MODELS = list(PROVIDERS["anthropic"].models)
 DEFAULT_MODEL = MODELS[0]
 
 # Modelos de Claude que aceptan el parámetro ``fallbacks`` en el servidor: si
@@ -99,7 +102,7 @@ class LLMError(RuntimeError):
     """Error comprensible para mostrar en la interfaz."""
 
 
-def extract_json(raw: str) -> dict:
+def extract_json(raw: str) -> dict[str, Any]:
     """Interpreta la salida del modelo como un objeto JSON.
 
     Tolera vallas de código (```json … ```) y texto alrededor del objeto, que
@@ -124,7 +127,23 @@ def extract_json(raw: str) -> dict:
     return data
 
 
-def _schema_instructions(schema: dict) -> str:
+def env_api_key(provider: str) -> str | None:
+    """API key del proveedor leída de sus variables de entorno, o ``None``."""
+    return next((os.environ[k] for k in PROVIDERS[provider].env_keys if os.environ.get(k)), None)
+
+
+def validate_base_url(url: str) -> str:
+    """Comprueba que la URL base del endpoint es ``http(s)://host…``.
+
+    Evita que se usen esquemas como ``file://`` y errores difíciles de entender.
+    """
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        raise LLMError("La URL base debe empezar por http:// o https:// e incluir un host.")
+    return url
+
+
+def _schema_instructions(schema: JSONSchema) -> str:
     return (
         "\n\nResponde únicamente con un objeto JSON válido, sin texto adicional ni "
         "vallas de código, que cumpla este JSON Schema:\n" + json.dumps(schema, ensure_ascii=False)
@@ -132,7 +151,12 @@ def _schema_instructions(schema: dict) -> str:
 
 
 class LLM:
-    """Hace llamadas de texto y de JSON estructurado a un modelo de un proveedor."""
+    """Hace llamadas de texto y de JSON estructurado a un modelo de un proveedor.
+
+    Si no se pasa ``api_key`` se lee de las variables de entorno del proveedor
+    (``PROVIDERS[provider].env_keys``). La key se entrega al SDK y no se guarda
+    en el objeto.
+    """
 
     def __init__(
         self,
@@ -151,7 +175,12 @@ class LLM:
             raise LLMError("Indica un modelo.")
         self.use_fallbacks = use_fallbacks
         self.base_url = (base_url or "").strip() or None
-        self.client = client or self._make_client(api_key or None)
+        if self.base_url:
+            validate_base_url(self.base_url)
+        self.client = client or self._make_client(api_key or env_api_key(provider))
+
+    def __repr__(self) -> str:
+        return f"LLM(provider={self.provider!r}, model={self.model!r})"
 
     # --- Clientes -----------------------------------------------------------
 
@@ -190,11 +219,11 @@ class LLM:
         """Genera una respuesta libre al par (system prompt, user prompt)."""
         return self._generate(system, user, effort, schema=None)
 
-    def json(self, system: str, user: str, schema: dict, effort: str = "high") -> dict:
+    def json(self, system: str, user: str, schema: JSONSchema, effort: str = "high") -> dict[str, Any]:
         """Devuelve un objeto JSON que cumple ``schema`` (salida estructurada)."""
         return extract_json(self._generate(system, user, effort, schema=schema))
 
-    def _generate(self, system: str, user: str, effort: str, schema: dict | None) -> str:
+    def _generate(self, system: str, user: str, effort: str, schema: JSONSchema | None) -> str:
         if self.provider == "anthropic":
             return self._anthropic(system, user, effort, schema)
         if self.provider in ("openai", "compatible"):
@@ -203,7 +232,7 @@ class LLM:
 
     # --- Anthropic ------------------------------------------------------------
 
-    def _anthropic(self, system: str, user: str, effort: str, schema: dict | None) -> str:
+    def _anthropic(self, system: str, user: str, effort: str, schema: JSONSchema | None) -> str:
         output_config: dict[str, Any] = {"effort": effort}
         if schema is not None:
             output_config["format"] = {"type": "json_schema", "schema": schema}
@@ -248,7 +277,7 @@ class LLM:
             return effort
         return None
 
-    def _openai(self, system: str, user: str, effort: str, schema: dict | None) -> str:
+    def _openai(self, system: str, user: str, effort: str, schema: JSONSchema | None) -> str:
         import openai
 
         label = "OpenAI" if self.provider == "openai" else f"el endpoint {self.base_url}"
@@ -313,14 +342,14 @@ class LLM:
 
     # --- Google Gemini ------------------------------------------------------------
 
-    def _gemini_thinking(self, effort: str) -> dict | None:
+    def _gemini_thinking(self, effort: str) -> dict[str, str] | None:
         """``thinking_level`` para Gemini 3 y posteriores (2.x usa presupuestos)."""
         if not re.match(r"gemini-([3-9]|\d{2,})", self.model):
             return None
         level = {"low": "LOW", "medium": "MEDIUM"}.get(effort, "HIGH")
         return {"thinking_level": level}
 
-    def _gemini(self, system: str, user: str, effort: str, schema: dict | None) -> str:
+    def _gemini(self, system: str, user: str, effort: str, schema: JSONSchema | None) -> str:
         from google.genai import errors
 
         config: dict[str, Any] = {}

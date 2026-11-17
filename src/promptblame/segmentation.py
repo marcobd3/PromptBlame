@@ -94,7 +94,7 @@ def segment(text: str, origin: str, prefix: str) -> list[Unit]:
         raw.extend(_split_sentences(text, start, end))
         i += 1
 
-    units = []
+    units: list[Unit] = []
     for span in raw:
         stripped = _strip(text, *span)
         if stripped is None:
