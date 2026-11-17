@@ -34,7 +34,11 @@ def test_app_end_to_end(monkeypatch):
 
     at = AppTest.from_file(str(Path(__file__).parent.parent / "app.py"), default_timeout=30).run()
     assert not at.exception
-    # Pestaña 1 en vertical: entrada, salida y, debajo, la atribución con sus criterios.
+    # Pestaña 1: entrada a la izquierda, salida a la derecha y, debajo, la atribución con sus criterios.
+    tab1 = at.tabs[0]
+    assert [t.key for t in tab1.columns[0].text_area] == ["system_prompt", "user_prompt"]
+    assert [t.key for t in tab1.columns[1].text_area] == ["response"]
+    assert at.tabs[0].label.startswith("1 · Response")  # inglés por defecto
     keys = [t.key for t in at.tabs[0].text_area]
     assert keys == ["system_prompt", "user_prompt", "response", "judge_instructions"]
     assert not at.expander  # los criterios ya no van en un desplegable sobre las pestañas
@@ -51,8 +55,8 @@ def test_app_end_to_end(monkeypatch):
     assert at.session_state.attribution is None  # cambiar los criterios invalida la atribución
     at.checkbox(key="instructions_in_rewrite").uncheck().run()
 
-    next(t for t in at.text_area if t.label == "¿Qué quieres mejorar?").input("Más breve").run()
-    gen = next(b for b in at.button if b.label.startswith("Generar nueva versión"))
+    next(t for t in at.text_area if t.label == "What do you want to improve?").input("Más breve").run()
+    gen = next(b for b in at.button if b.label.startswith("Generate new system prompt"))
     gen.click().run()
     assert at.session_state.rewrite.new_system_prompt == "Nuevo prompt."
     assert at.session_state.attribution.instructions == "Sé estricto con la confianza."
@@ -60,7 +64,7 @@ def test_app_end_to_end(monkeypatch):
     rewrite_systems = [s for s, schema in json_calls if "new_system_prompt" in schema["properties"]]
     assert "Sé estricto con la confianza." in judge_systems[-1]
     assert "Sé estricto con la confianza." not in rewrite_systems[-1]
-    adopt = next(b for b in at.button if b.label.startswith("Usar esta versión"))
+    adopt = next(b for b in at.button if b.label.startswith("Use this version"))
     adopt.click().run()
     assert at.text_area(key="system_prompt").value == "Nuevo prompt."
     assert at.session_state.versions
@@ -92,3 +96,42 @@ def test_app_with_other_providers(monkeypatch):
     assert not at.exception
     assert ("openai", "gpt-6.1-sol") in built
     assert ("gemini", "gemini-4-argon") in built
+
+
+def test_root_app_uses_repo_code(monkeypatch, tmp_path):
+    """``streamlit run app.py`` ejecuta el código de src/, no un paquete instalado antiguo."""
+    import sys
+
+    stale = tmp_path / "promptblame"
+    stale.mkdir()
+    (stale / "__init__.py").write_text("")
+    (stale / "app.py").write_text("import streamlit as st\nst.write('VERSION ANTIGUA')\n")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    for name in [m for m in sys.modules if m == "promptblame" or m.startswith("promptblame.")]:
+        monkeypatch.delitem(sys.modules, name)
+
+    at = AppTest.from_file(str(Path(__file__).parent.parent / "app.py"), default_timeout=30).run()
+    assert not at.exception
+    assert not any("VERSION ANTIGUA" in m.value for m in at.markdown)
+    assert at.text_area(key="judge_instructions") is not None
+
+
+def test_app_in_spanish(monkeypatch):
+    """Con el idioma en español, la interfaz, los ejemplos y el juez van en español."""
+    monkeypatch.setattr(LLM, "text", fake_text)
+    monkeypatch.setattr(LLM, "json", fake_json)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+
+    at = AppTest.from_file(str(Path(__file__).parent.parent / "app.py"), default_timeout=30).run()
+    assert "online bicycle shop" in at.text_area(key="system_prompt").value
+    at.selectbox(key="lang").set_value("es").run()
+    assert not at.exception
+    assert at.tabs[0].label.startswith("1 · Respuesta")
+    assert "tienda online de bicicletas" in at.text_area(key="system_prompt").value
+    assert at.text_area(key="judge_instructions").label == "Instrucciones de atribución (opcional)"
+
+    json_calls.clear()
+    at.button[0].click().run()
+    at.button[1].click().run()
+    assert at.session_state.attribution.language == "es"
+    assert "escrita en español" in json_calls[-1][0]

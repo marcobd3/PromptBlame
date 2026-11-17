@@ -43,7 +43,7 @@ def test_llm_repr_does_not_include_secrets(monkeypatch):
 
 @pytest.mark.parametrize("url", ["file:///etc/passwd", "localhost:11434", "ftp://x/v1", "http://"])
 def test_base_url_must_be_http(url):
-    with pytest.raises(LLMError, match="URL base"):
+    with pytest.raises(LLMError, match="base URL"):
         LLM(model="llama3.3", provider="compatible", base_url=url, client=object())
 
 

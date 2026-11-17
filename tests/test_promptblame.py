@@ -210,7 +210,8 @@ def test_html_contains_blocks_quotes_and_escapes():
     assert 'id="card-B2"' in html
     assert "Usa listas numeradas para los pasos." in html
     assert "&lt;b&gt;" in html or "<b>" not in USER
-    assert "Instrucciones sin efecto visible" in html
+    assert "Instructions with no visible effect" in html
+    assert "Instrucciones sin efecto visible" in attribution_html(attr, language="es")
 
 
 # --- LLM -------------------------------------------------------------------------
@@ -218,7 +219,7 @@ def test_html_contains_blocks_quotes_and_escapes():
 
 def test_refusal_raises_readable_error():
     llm, _ = fake_llm(lambda kw: ("", "refusal"))
-    with pytest.raises(LLMError, match="rechazó"):
+    with pytest.raises(LLMError, match="refused"):
         llm.text("s", "u")
 
 
@@ -242,3 +243,31 @@ def test_html_theme_class():
     assert '<body class="dark" data-theme="dark">' in attribution_html(attr, theme="dark")
     assert "<body>" in attribution_html(attr)
     assert "body.dark" in attribution_html(attr)
+
+
+def test_language_of_explanations_and_ui():
+    from promptblame.i18n import STRINGS, detect_language
+
+    assert detect_language("es-ES") == "es"
+    assert detect_language("es_MX") == "es"
+    assert detect_language("en-GB") == "en"
+    assert detect_language("fr-FR") == "en"
+    assert detect_language(None) == "en"
+    assert set(STRINGS["en"]) == set(STRINGS["es"])
+
+    llm, calls = fake_llm(judge_handler)
+    attr = attribute(llm, SYSTEM, USER, RESPONSE)
+    assert "escrita en inglés" in calls.calls[-1]["system"]
+    assert attr.language == "en"
+    attr = attribute(llm, SYSTEM, USER, RESPONSE, language="es")
+    assert "escrita en español" in calls.calls[-1]["system"]
+
+    rw_llm, rw_calls = fake_llm(
+        lambda kw: (json.dumps({"new_system_prompt": SYSTEM, "changes": [], "summary": ""}), "end_turn")
+    )
+    rewrite_system_prompt(rw_llm, attr, "Más corto")  # hereda el idioma de la atribución
+    assert "ambos en español" in rw_calls.calls[-1]["system"]
+    rewrite_system_prompt(rw_llm, attr, "Más corto", language="en")
+    assert "ambos en inglés" in rw_calls.calls[-1]["system"]
+    assert unified_diff("a", "b").startswith("--- current system prompt")
+    assert unified_diff("a", "b", language="es").startswith("--- system prompt actual")

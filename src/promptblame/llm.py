@@ -73,13 +73,13 @@ PROVIDERS: dict[str, Provider] = {
         ),
         Provider(
             "compatible",
-            "Compatible con OpenAI (Ollama, OpenRouter, Mistral…)",
+            "OpenAI-compatible (Ollama, OpenRouter, Mistral…)",
             ("llama3.3", "qwen3", "mistral-large-latest"),
             ("OPENAI_COMPATIBLE_API_KEY",),
             supports_effort=False,
             needs_base_url=True,
             key_required=False,
-            short="endpoint compatible",
+            short="compatible endpoint",
         ),
     ]
 }
@@ -118,13 +118,13 @@ def extract_json(raw: str) -> dict[str, Any]:
     except json.JSONDecodeError:
         start, end = text.find("{"), text.rfind("}")
         if start == -1 or end <= start:
-            raise LLMError("El modelo devolvió un JSON no válido.") from None
+            raise LLMError("The model returned invalid JSON.") from None
         try:
             data = json.loads(text[start : end + 1])
         except json.JSONDecodeError as exc:
-            raise LLMError("El modelo devolvió un JSON no válido.") from exc
+            raise LLMError("The model returned invalid JSON.") from exc
     if not isinstance(data, dict):
-        raise LLMError("El modelo devolvió un JSON no válido (se esperaba un objeto).")
+        raise LLMError("The model returned invalid JSON (expected an object).")
     return data
 
 
@@ -140,7 +140,7 @@ def validate_base_url(url: str) -> str:
     """
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.netloc:
-        raise LLMError("La URL base debe empezar por http:// o https:// e incluir un host.")
+        raise LLMError("The base URL must start with http:// or https:// and include a host.")
     return url
 
 
@@ -169,11 +169,11 @@ class LLM:
         base_url: str | None = None,
     ) -> None:
         if provider not in PROVIDERS:
-            raise LLMError(f"Proveedor desconocido: «{provider}».")
+            raise LLMError(f"Unknown provider: {provider!r}.")
         self.provider = provider
         self.model = model.strip()
         if not self.model:
-            raise LLMError("Indica un modelo.")
+            raise LLMError("Specify a model.")
         self.use_fallbacks = use_fallbacks
         self.base_url = (base_url or "").strip() or None
         if self.base_url:
@@ -190,29 +190,31 @@ class LLM:
             try:
                 return anthropic.Anthropic(api_key=api_key)
             except anthropic.AnthropicError as exc:
-                raise LLMError("Falta la API key de Anthropic.") from exc
+                raise LLMError("Missing Anthropic API key.") from exc
         if self.provider in ("openai", "compatible"):
             try:
                 import openai
             except ImportError as exc:
-                raise LLMError("Falta el paquete «openai»: reinstala promptblame (pip install -U promptblame)") from exc
+                raise LLMError(
+                    "The 'openai' package is missing: reinstall promptblame (pip install -U promptblame)"
+                ) from exc
             if self.provider == "compatible":
                 if not self.base_url:
-                    raise LLMError("Indica la URL base del endpoint compatible con OpenAI.")
+                    raise LLMError("Specify the base URL of the OpenAI-compatible endpoint.")
                 # El SDK exige una key aunque los servidores locales no la usen.
                 return openai.OpenAI(api_key=api_key or "sin-key", base_url=self.base_url)
             try:
                 return openai.OpenAI(api_key=api_key)
             except openai.OpenAIError as exc:
-                raise LLMError("Falta la API key de OpenAI.") from exc
+                raise LLMError("Missing OpenAI API key.") from exc
         try:
             from google import genai
         except ImportError as exc:
-            raise LLMError('Falta el paquete «google-genai»: pip install "promptblame[gemini]"') from exc
+            raise LLMError('The "google-genai" package is missing: pip install "promptblame[gemini]"') from exc
         try:
             return genai.Client(api_key=api_key)
         except ValueError as exc:
-            raise LLMError("Falta la API key de Gemini.") from exc
+            raise LLMError("Missing Gemini API key.") from exc
 
     # --- API pública ----------------------------------------------------------
 
@@ -251,20 +253,20 @@ class LLM:
         try:
             response = self.client.beta.messages.create(**params)
         except anthropic.AuthenticationError as exc:
-            raise LLMError("La API key de Anthropic no es válida.") from exc
+            raise LLMError("The Anthropic API key is invalid.") from exc
         except anthropic.NotFoundError as exc:
-            raise LLMError(f"El modelo «{self.model}» no está disponible.") from exc
+            raise LLMError(f"Model {self.model!r} is not available.") from exc
         except anthropic.RateLimitError as exc:
-            raise LLMError("Límite de uso alcanzado; espera un momento y reintenta.") from exc
+            raise LLMError("Rate limit reached; wait a moment and try again.") from exc
         except anthropic.APIStatusError as exc:
-            raise LLMError(f"Error de la API de Anthropic ({exc.status_code}): {exc.message}") from exc
+            raise LLMError(f"Anthropic API error ({exc.status_code}): {exc.message}") from exc
         except anthropic.APIConnectionError as exc:
-            raise LLMError("No se pudo conectar con la API de Anthropic.") from exc
+            raise LLMError("Could not connect to the Anthropic API.") from exc
 
         if response.stop_reason == "refusal":
-            raise LLMError("El modelo rechazó la petición por motivos de seguridad.")
+            raise LLMError("The model refused the request for safety reasons.")
         if response.stop_reason == "max_tokens":
-            raise LLMError("La respuesta se cortó por exceder max_tokens.")
+            raise LLMError("The response was cut off: max_tokens exceeded.")
         return "".join(b.text for b in response.content if getattr(b, "type", None) == "text")
 
     # --- OpenAI y compatibles ---------------------------------------------------
@@ -281,7 +283,7 @@ class LLM:
     def _openai(self, system: str, user: str, effort: str, schema: JSONSchema | None) -> str:
         import openai
 
-        label = "OpenAI" if self.provider == "openai" else f"el endpoint {self.base_url}"
+        label = "OpenAI" if self.provider == "openai" else f"the endpoint {self.base_url}"
         messages: list[dict[str, str]] = []
         if system.strip():
             messages.append({"role": "system", "content": system})
@@ -318,27 +320,27 @@ class LLM:
                 break
             except openai.BadRequestError as exc:
                 if i == len(attempts) - 1:
-                    raise LLMError(f"Petición rechazada por {label}: {exc.message}") from exc
+                    raise LLMError(f"Request rejected by {label}: {exc.message}") from exc
             except openai.AuthenticationError as exc:
-                raise LLMError(f"La API key de {label} no es válida.") from exc
+                raise LLMError(f"The API key for {label} is invalid.") from exc
             except openai.NotFoundError as exc:
-                raise LLMError(f"El modelo «{self.model}» no está disponible en {label}.") from exc
+                raise LLMError(f"Model {self.model!r} is not available on {label}.") from exc
             except openai.RateLimitError as exc:
-                raise LLMError("Límite de uso alcanzado; espera un momento y reintenta.") from exc
+                raise LLMError("Rate limit reached; wait a moment and try again.") from exc
             except openai.APIStatusError as exc:
-                raise LLMError(f"Error de {label} ({exc.status_code}): {exc.message}") from exc
+                raise LLMError(f"{label} error ({exc.status_code}): {exc.message}") from exc
             except openai.APIConnectionError as exc:
-                raise LLMError(f"No se pudo conectar con {label}.") from exc
+                raise LLMError(f"Could not connect to {label}.") from exc
 
         if not response.choices:
-            raise LLMError("El modelo no devolvió ninguna respuesta.")
+            raise LLMError("The model returned no response.")
         choice = response.choices[0]
         if getattr(choice.message, "refusal", None):
-            raise LLMError("El modelo rechazó la petición por motivos de seguridad.")
+            raise LLMError("The model refused the request for safety reasons.")
         if choice.finish_reason == "length":
-            raise LLMError("La respuesta se cortó por exceder el máximo de tokens.")
+            raise LLMError("The response was cut off: maximum tokens exceeded.")
         if choice.finish_reason == "content_filter":
-            raise LLMError("El filtro de contenido del proveedor bloqueó la respuesta.")
+            raise LLMError("The provider's content filter blocked the response.")
         return choice.message.content or ""
 
     # --- Google Gemini ------------------------------------------------------------
@@ -367,23 +369,23 @@ class LLM:
         except errors.APIError as exc:
             code = getattr(exc, "code", None)
             if code in (401, 403):
-                raise LLMError("La API key de Gemini no es válida o no tiene permiso.") from exc
+                raise LLMError("The Gemini API key is invalid or lacks permission.") from exc
             if code == 404:
-                raise LLMError(f"El modelo «{self.model}» no está disponible en Gemini.") from exc
+                raise LLMError(f"Model {self.model!r} is not available on Gemini.") from exc
             if code == 429:
-                raise LLMError("Límite de uso alcanzado; espera un momento y reintenta.") from exc
-            raise LLMError(f"Error de la API de Gemini ({code}): {getattr(exc, 'message', exc)}") from exc
+                raise LLMError("Rate limit reached; wait a moment and try again.") from exc
+            raise LLMError(f"Gemini API error ({code}): {getattr(exc, 'message', exc)}") from exc
         except Exception as exc:  # red caída, DNS, timeouts… (el SDK no los envuelve)
-            raise LLMError(f"No se pudo llamar a la API de Gemini: {exc}") from exc
+            raise LLMError(f"Could not call the Gemini API: {exc}") from exc
 
         feedback = getattr(response, "prompt_feedback", None)
         if feedback is not None and getattr(feedback, "block_reason", None):
-            raise LLMError("Gemini bloqueó la petición por motivos de seguridad.")
+            raise LLMError("Gemini blocked the request for safety reasons.")
         candidates = getattr(response, "candidates", None) or []
         if candidates:
             reason = str(getattr(candidates[0], "finish_reason", "") or "")
             if reason.endswith("MAX_TOKENS"):
-                raise LLMError("La respuesta se cortó por exceder el máximo de tokens.")
+                raise LLMError("The response was cut off: maximum tokens exceeded.")
             if reason.endswith(("SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII")):
-                raise LLMError("Gemini bloqueó la respuesta por motivos de seguridad.")
+                raise LLMError("Gemini blocked the response for safety reasons.")
         return response.text or ""
