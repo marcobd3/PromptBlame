@@ -66,6 +66,8 @@ logits, attention or weights, only the provider's API.
 
 Requirements: Python 3.11 or later and an API key for the provider you will use
 (or a local server such as Ollama, which needs none).
+PromptBlame is published on [PyPI](https://pypi.org/project/promptblame/), so
+you can install it with `pip`:
 
 ```bash
 python -m venv .venv && source .venv/bin/activate

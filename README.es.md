@@ -65,6 +65,8 @@ logits, atención ni pesos, sólo la API del proveedor.
 
 Requisitos: Python 3.11 o superior y una API key del proveedor que vayas a usar
 (o un servidor local como Ollama, que no la necesita).
+PromptBlame está publicado en [PyPI](https://pypi.org/project/promptblame/), así
+que se instala con `pip`:
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
