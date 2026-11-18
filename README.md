@@ -11,15 +11,21 @@
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](https://github.com/marcobd3/PromptBlame/blob/main/LICENSE)
+[![Downloads](https://img.shields.io/pypi/dm/promptblame?label=downloads)](https://pypistats.org/packages/promptblame)
 [![Providers](https://img.shields.io/badge/LLM-Claude%20%C2%B7%20OpenAI%20%C2%B7%20Gemini%20%C2%B7%20Ollama-6E56CF)](#providers)
 
+[Why](#why-promptblame) ·
 [Quick start](#quick-start) ·
 [Usage](#usage) ·
 [How it works](#how-it-works) ·
 [Library usage](#library-usage) ·
-[Development](#development)
+[Contributing](#contributing)
 
 </div>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/demo.gif" alt="Demo: generate a response, open the attribution view where each coloured block links to the instruction that caused it, then describe an improvement and get a new system prompt with its diff" width="900">
+</p>
 
 ---
 
@@ -32,9 +38,27 @@ instructions.
 It works at the **instruction** level and with **closed models**: it needs no
 logits, attention or weights, only the provider's API.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/attribution-view.png" alt="Attribution window: the response split into coloured blocks and, on the right, the prompt quote each block comes from" width="900">
-</p>
+```bash
+pip install "promptblame[all]" && promptblame
+```
+
+## Why PromptBlame?
+
+Long system prompts grow by accretion: every bug gets a new line, and after a
+while nobody knows which line does what. When the model does something you
+don't want, PromptBlame tells you **where it came from**:
+
+- **Debug a bad answer.** See which instruction (or which part of the user's
+  message) produced the sentence you don't like, instead of guessing.
+- **Find dead instructions.** Instructions with no visible effect are listed
+  separately, so you know what the model is ignoring and what you could remove.
+- **Spot what the model made up.** Grey blocks come from no instruction at all:
+  that is the model's own knowledge filling the gaps.
+- **Fix the prompt surgically.** Describe the change you want and the rewriter
+  touches only the instructions responsible, with a table of changes and a diff.
+
+It works with any model behind an API, including closed ones, because it never
+needs logits, attention or weights.
 
 ## Features
 
@@ -78,6 +102,22 @@ promptblame
 
 The app opens at <http://localhost:8501> with an example loaded. Arguments are
 passed on to Streamlit, e.g. `promptblame --server.port 8600`.
+
+### No API key? Use a local model
+
+PromptBlame talks to any OpenAI-compatible server, so it runs fully offline
+with [Ollama](https://ollama.com):
+
+```bash
+ollama pull llama3.2
+pip install "promptblame[app]"
+promptblame
+```
+
+In the sidebar, pick **OpenAI-compatible** as the provider for the service and
+the judge, and type the model name (`llama3.2`). The base URL defaults to
+Ollama's (`http://localhost:11434/v1`). You can also mix them: a local model
+answers and Claude judges.
 
 ### Extras
 
@@ -124,6 +164,10 @@ the attribution section.
    response split into coloured blocks and, on the right, the quote each block
    comes from. Hovering over a block highlights its quote; clicking jumps to it.
 3. Grey blocks come from no instruction: they are the model's own knowledge.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/attribution-view.png" alt="Attribution window: the response split into coloured blocks and, on the right, the prompt quote each block comes from" width="900">
+</p>
 
 ### 2 · Improve the system prompt
 
@@ -353,8 +397,21 @@ To report a vulnerability, see [SECURITY.md](https://github.com/marcobd3/PromptB
 
 ## Contributing
 
-Issues and pull requests are welcome. Before opening a PR, run `ruff`, `mypy`
-and `pytest`, and add tests for new behaviour.
+Issues and pull requests are welcome, from bug reports to new providers.
+Some areas where help is especially useful:
+
+- Semantic similarity for the ablation check (today it is lexical).
+- Segmentation for languages other than English and Spanish.
+- Benchmarks: prompts with a known cause, to measure how often the judge is right.
+- Exporting the attribution map (JSON, HTML report).
+
+To get started, follow [Development](#development): install with
+`pip install -e ".[all]" --group dev`, and before opening a PR run `ruff`,
+`mypy` and `pytest` and add tests for new behaviour. The tests simulate the
+providers, so you don't need an API key.
+
+If PromptBlame helped you understand a prompt, a ⭐ on GitHub helps other
+people find it.
 
 ## License
 

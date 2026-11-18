@@ -11,15 +11,23 @@
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
 [![License: AGPL v3](https://img.shields.io/badge/licencia-AGPL--3.0-blue.svg)](https://github.com/marcobd3/PromptBlame/blob/main/LICENSE)
+[![Descargas](https://img.shields.io/pypi/dm/promptblame?label=descargas)](https://pypistats.org/packages/promptblame)
 [![Proveedores](https://img.shields.io/badge/LLM-Claude%20%C2%B7%20OpenAI%20%C2%B7%20Gemini%20%C2%B7%20Ollama-6E56CF)](#proveedores)
 
+[Para qué sirve](#para-qué-sirve) ·
 [Inicio rápido](#inicio-rápido) ·
 [Uso](#uso) ·
 [Cómo funciona](#cómo-funciona) ·
 [Uso como librería](#uso-como-librería) ·
-[Desarrollo](#desarrollo)
+[Contribuir](#contribuir)
 
 </div>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/demo.gif" alt="Demo: se genera una respuesta, se abre la vista de atribución donde cada bloque de color enlaza con la instrucción que lo causó y, después, se describe una mejora y se obtiene un nuevo system prompt con su diff" width="900">
+</p>
+
+<p align="center"><sub>La demo usa la interfaz en inglés; se muestra en español si tu navegador lo está.</sub></p>
 
 ---
 
@@ -31,9 +39,28 @@ nueva versión del system prompt que toca sólo las instrucciones responsables.
 Funciona a nivel de **instrucción** y con **modelos cerrados**: no necesita
 logits, atención ni pesos, sólo la API del proveedor.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/es/vista-atribucion.png" alt="Ventana de atribución: la respuesta dividida en bloques de colores y, a la derecha, la cita del prompt de la que procede cada bloque" width="900">
-</p>
+```bash
+pip install "promptblame[all]" && promptblame
+```
+
+## Para qué sirve
+
+Los system prompts largos crecen por acumulación: cada fallo añade una línea y,
+al cabo de un tiempo, nadie sabe qué hace cada una. Cuando el modelo hace algo
+que no quieres, PromptBlame te dice **de dónde viene**:
+
+- **Depurar una mala respuesta.** Ves qué instrucción (o qué parte del mensaje
+  del usuario) produjo la frase que no te gusta, en lugar de adivinarlo.
+- **Encontrar instrucciones muertas.** Las instrucciones sin efecto visible se
+  listan aparte, así sabes qué está ignorando el modelo y qué podrías quitar.
+- **Ver lo que pone el modelo de su cosecha.** Los bloques grises no vienen de
+  ninguna instrucción: es el conocimiento propio del modelo rellenando huecos.
+- **Arreglar el prompt con bisturí.** Describe el cambio que quieres y el
+  reescritor toca sólo las instrucciones responsables, con una tabla de cambios
+  y un diff.
+
+Funciona con cualquier modelo detrás de una API, también los cerrados, porque
+nunca necesita logits, atención ni pesos.
 
 ## Características
 
@@ -77,6 +104,22 @@ promptblame
 
 La app se abre en <http://localhost:8501> con un ejemplo cargado. Los
 argumentos se pasan a Streamlit, p. ej. `promptblame --server.port 8600`.
+
+### ¿Sin API key? Usa un modelo local
+
+PromptBlame habla con cualquier servidor compatible con OpenAI, así que
+funciona sin conexión con [Ollama](https://ollama.com):
+
+```bash
+ollama pull llama3.2
+pip install "promptblame[app]"
+promptblame
+```
+
+En la barra lateral, elige **Compatible con OpenAI** como proveedor del
+servicio y del juez, y escribe el nombre del modelo (`llama3.2`). La URL base
+es la de Ollama por defecto (`http://localhost:11434/v1`). También puedes
+combinarlos: responde un modelo local y juzga Claude.
 
 ### Extras
 
@@ -124,6 +167,10 @@ las dos, la sección de atribución.
    Al pasar el ratón por un bloque se resalta su cita; al hacer clic se salta a ella.
 3. Los bloques grises no proceden de ninguna instrucción: son conocimiento
    propio del modelo.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/es/vista-atribucion.png" alt="Ventana de atribución: la respuesta dividida en bloques de colores y, a la derecha, la cita del prompt de la que procede cada bloque" width="900">
+</p>
 
 ### 2 · Mejorar el system prompt
 
@@ -352,8 +399,21 @@ Para informar de una vulnerabilidad, consulta [SECURITY.md](https://github.com/m
 
 ## Contribuir
 
-Las *issues* y *pull requests* son bienvenidas. Antes de abrir una PR, ejecuta
-`ruff`, `mypy` y `pytest`, y añade tests para el comportamiento nuevo.
+Las *issues* y *pull requests* son bienvenidas, desde avisos de fallos hasta
+proveedores nuevos. Algunas áreas donde la ayuda es especialmente útil:
+
+- Similitud semántica para la verificación por ablación (hoy es léxica).
+- Segmentación para idiomas distintos del español y el inglés.
+- Benchmarks: prompts con una causa conocida, para medir cuántas veces acierta el juez.
+- Exportar el mapa de atribución (JSON, informe HTML).
+
+Para empezar, sigue [Desarrollo](#desarrollo): instala con
+`pip install -e ".[all]" --group dev` y, antes de abrir una PR, ejecuta `ruff`,
+`mypy` y `pytest` y añade tests para el comportamiento nuevo. Los tests simulan
+los proveedores, así que no necesitas API key.
+
+Si PromptBlame te ha ayudado a entender un prompt, una ⭐ en GitHub ayuda a que
+otras personas lo encuentren.
 
 ## Licencia
 
