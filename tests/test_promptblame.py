@@ -206,7 +206,7 @@ def test_html_contains_blocks_quotes_and_escapes():
     llm, _ = fake_llm(judge_handler)
     attr = attribute(llm, SYSTEM, USER + " <b>", RESPONSE)
     html = attribution_html(attr)
-    assert html.count('class="blk"') == len(attr.blocks)
+    assert html.count('<span class="blk') == len(attr.blocks)
     assert 'id="card-B2"' in html
     assert "Usa listas numeradas para los pasos." in html
     assert "&lt;b&gt;" in html or "<b>" not in USER

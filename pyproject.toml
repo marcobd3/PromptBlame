@@ -1,17 +1,16 @@
 [build-system]
-requires = ["hatchling>=1.27"]
+requires = ["hatchling>=1.27", "hatch-fancy-pypi-readme>=24.1"]
 build-backend = "hatchling.build"
 
 [project]
 name = "promptblame"
-dynamic = ["version"]
+dynamic = ["version", "readme"]
 description = "Attribute each part of an LLM response to the system prompt or user prompt instruction that produced it"
-readme = "README.md"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "Marco Baleato Domínguez" }]
-keywords = ["llm", "prompt-engineering", "system-prompt", "attribution", "explainability", "streamlit", "claude", "openai", "gemini"]
+keywords = ["llm", "prompt-engineering", "evaluation", "ci", "system-prompt", "attribution", "explainability", "streamlit", "claude", "openai", "gemini"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -31,12 +30,14 @@ classifiers = [
 # OpenAI and any compatible endpoint (Ollama, OpenRouter, Mistral, vLLM...).
 # The UI and Gemini are extras. Each SDK is capped at its major version so a
 # release with breaking changes doesn't break existing installs.
-dependencies = ["anthropic>=2.9.0,<3", "openai>=3.0,<4"]
+# python-dotenv loads a .env file with keys and defaults (see .env.example).
+dependencies = ["anthropic>=2.9.0,<3", "openai>=3.0,<4", "python-dotenv>=1.0,<2"]
 
 [project.optional-dependencies]
 app = ["streamlit>=1.67,<2"]
 gemini = ["google-genai>=1.51,<4"]
-all = ["promptblame[app,gemini]"]
+api = ["fastapi>=0.115,<1", "uvicorn>=0.32,<1"]
+all = ["promptblame[app,gemini,api]"]
 
 [project.scripts]
 promptblame = "promptblame.cli:main"
@@ -49,18 +50,35 @@ Issues = "https://github.com/marcobd3/PromptBlame/issues"
 Changelog = "https://github.com/marcobd3/PromptBlame/blob/main/CHANGELOG.md"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.14", "mypy>=1.18", "build>=1.3", "twine>=6.2"]
+dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.14", "mypy>=1.18", "build>=1.3", "twine>=6.2"]
 
 # --- Build ----------------------------------------------------------------------
 
 [tool.hatch.version]
 path = "src/promptblame/__init__.py"
 
+# The README uses relative paths so images and links also work on GitHub
+# branches and pull requests; PyPI needs absolute URLs, so they are rewritten
+# when building the package.
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = 'src="docs/'
+replacement = 'src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/'
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((README\.es\.md|\.env\.example|LICENSE|SECURITY\.md|CHANGELOG\.md)\)'
+replacement = '](https://github.com/marcobd3/PromptBlame/blob/main/\1)'
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/promptblame"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/promptblame", "tests", "README.md", "CHANGELOG.md", "SECURITY.md", "LICENSE"]
+include = ["src/promptblame", "tests", "README.md", "CHANGELOG.md", "SECURITY.md", "LICENSE", ".env.example"]
 
 # --- Tests ----------------------------------------------------------------------
 
@@ -107,5 +125,5 @@ no_implicit_optional = true
 strict_equality = true
 
 [[tool.mypy.overrides]]
-module = ["streamlit.*", "google.*", "openai.*"]
+module = ["streamlit.*", "google.*", "openai.*", "uvicorn.*"]
 ignore_missing_imports = true

@@ -95,10 +95,12 @@ def attribution_report(attribution: Attribution) -> str:
                 ref = f"{link.unit.id} ({link.confidence}"
                 if link.ablation_effect is not None:
                     ref += f", efecto de ablación {link.ablation_effect:.2f}"
+                if link.causal_score is not None:
+                    ref += f", puntuación causal {link.causal_score:.2f}"
                 refs.append(ref + ")")
-            cause = ", ".join(refs)
+            cause = ", ".join(refs) + f"; confianza del bloque {block.confidence_score or 0:.2f}"
         else:
-            cause = "ninguna instrucción (conocimiento del modelo)"
+            cause = "ninguna instrucción (conocimiento del modelo o posible alucinación)"
         lines.append(f"[{block.id}] «{block.text}»\n  causado por: {cause}\n  motivo: {block.explanation}")
     unused = attribution.unused_sources
     if unused:
