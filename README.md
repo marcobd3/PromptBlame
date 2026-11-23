@@ -25,7 +25,7 @@
 </div>
 
 <p align="center">
-  <img src="docs/demo.gif" alt="Demo: generate a response, open the attribution view where each coloured block links to the instruction that caused it, then describe an improvement and get a new system prompt with its diff" width="900">
+  <img src="docs/demo.gif" alt="Demo: generate a response, open the attribution view, verify the links by ablation, describe an improvement to get a new system prompt, and find the dead instructions in tab 3" width="900">
 </p>
 
 ---
@@ -124,6 +124,12 @@ passed on to Streamlit, e.g. `promptblame --server.port 8600`.
 
 Copy [`.env.example`](.env.example)
 to `.env` in the folder where you launch PromptBlame and fill in what you need.
+If you installed from PyPI, download it first:
+
+```bash
+curl -o .env https://raw.githubusercontent.com/marcobd3/PromptBlame/main/.env.example
+```
+
 The UI, the CLI and the REST API load it on start-up; variables already set in
 the environment win.
 
