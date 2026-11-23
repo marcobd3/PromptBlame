@@ -4,7 +4,7 @@
 
 **Descubre qué instrucción de tu prompt produjo cada parte de la respuesta de un LLM.**
 
-[English](https://github.com/marcobd3/PromptBlame/blob/main/README.md) · **Español**
+[English](README.md) · **Español**
 
 [![Tests](https://github.com/marcobd3/PromptBlame/actions/workflows/tests.yml/badge.svg)](https://github.com/marcobd3/PromptBlame/actions/workflows/tests.yml)
 [![PyPI](https://img.shields.io/pypi/v/promptblame?logo=pypi&logoColor=white)](https://pypi.org/project/promptblame/)
@@ -25,7 +25,7 @@
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/demo.gif" alt="Demo: se genera una respuesta, se abre la vista de atribución donde cada bloque de color enlaza con la instrucción que lo causó y, después, se describe una mejora y se obtiene un nuevo system prompt con su diff" width="900">
+  <img src="docs/demo.gif" alt="Demo: se genera una respuesta, se abre la vista de atribución donde cada bloque de color enlaza con la instrucción que lo causó y, después, se describe una mejora y se obtiene un nuevo system prompt con su diff" width="900">
 </p>
 
 <p align="center"><sub>La demo usa la interfaz en inglés; se muestra en español si tu navegador lo está.</sub></p>
@@ -76,8 +76,10 @@ nunca necesita logits, atención ni pesos.
   que procede, con su nivel de confianza y una explicación.
 - **Citas siempre literales.** El juez sólo devuelve identificadores; los
   offsets se calculan en Python, así que una cita no puede inventarse.
-- **Instrucciones ignoradas a la vista.** Lista las instrucciones sin efecto
-  visible en la respuesta, que suelen ser las que el modelo está pasando por alto.
+- **Instrucciones ignoradas a la vista.** Cada atribución lista las
+  instrucciones sin efecto visible en esa respuesta, que suelen ser las que el
+  modelo está pasando por alto (la pestaña 3 hace lo mismo con muchas
+  ejecuciones).
 - **Verificación por ablación con puntuación causal (opcional).** Confirma
   cada atribución regenerando la respuesta sin la instrucción citada y
   midiendo cuánto del bloque desaparece (de 0 a 1). Se puede lanzar desde la
@@ -127,7 +129,7 @@ argumentos se pasan a Streamlit, p. ej. `promptblame --server.port 8600`.
 
 ### Configuración con `.env`
 
-Copia [`.env.example`](https://github.com/marcobd3/PromptBlame/blob/main/.env.example)
+Copia [`.env.example`](.env.example)
 a `.env` en la carpeta desde la que lanzas PromptBlame y rellena lo que
 necesites. La interfaz, la CLI y la API REST lo cargan al arrancar; las
 variables que ya estén definidas en el entorno tienen prioridad.
@@ -145,6 +147,19 @@ Las keys del `.env` se usan en el servidor y **no** se copian en los campos de
 la barra lateral (lo que hay en un campo llega al navegador); en su lugar el
 campo muestra «Configurada en el servidor». Proveedores, modelos, esfuerzos,
 idioma y ablación pasan a ser los valores iniciales de la barra lateral.
+
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` (o `GOOGLE_API_KEY`), `OPENAI_COMPATIBLE_API_KEY` | | Keys de los proveedores. |
+| `OPENAI_COMPATIBLE_BASE_URL` | `http://localhost:11434/v1` | URL base del endpoint compatible con OpenAI. |
+| `PROMPTBLAME_SERVICE_PROVIDER` / `_MODEL` / `_EFFORT` | `anthropic` / `claude-opus-5-5` / `medium` | Servicio: genera la respuesta y las regeneraciones de la ablación. |
+| `PROMPTBLAME_JUDGE_PROVIDER` / `_MODEL` / `_EFFORT` | `anthropic` / `claude-opus-5-5` / `high` | Juez: atribución y reescritura. |
+| `PROMPTBLAME_LANGUAGE` | el del navegador | `en` o `es`. |
+| `PROMPTBLAME_ABLATION` | `false` | Verificar por ablación por defecto. |
+| `PROMPTBLAME_MAX_ABLATION` | `8` | Máx. instrucciones a ablacionar (1-30). |
+| `PROMPTBLAME_API_TOKEN` | | Token Bearer que exige la API REST. |
+
+Los valores no válidos se ignoran y se usa el valor por defecto.
 
 ### ¿Sin API key? Usa un modelo local
 
@@ -194,7 +209,7 @@ plataformas que sólo leen ese archivo (p. ej. Streamlit Community Cloud).
 ### 1 · Respuesta y atribución
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/es/pestana-1.png" alt="Pestaña 1: entrada a la izquierda, salida del servicio a la derecha y, debajo, la sección de atribución con sus instrucciones" width="900">
+  <img src="docs/es/pestana-1.png" alt="Pestaña 1: entrada a la izquierda, salida del servicio a la derecha y, debajo, la sección de atribución con sus instrucciones" width="900">
 </p>
 
 La entrada está a la izquierda, la salida del servicio a la derecha y, debajo de
@@ -217,13 +232,13 @@ las dos, la sección de atribución.
    marca *confirmada / no confirmada* y una **puntuación causal**.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/es/vista-atribucion.png" alt="Ventana de atribución: la respuesta dividida en bloques de colores y, a la derecha, la cita del prompt de la que procede cada bloque" width="900">
+  <img src="docs/es/vista-atribucion.png" alt="Ventana de atribución: la respuesta dividida en bloques de colores y, a la derecha, la cita del prompt de la que procede cada bloque" width="900">
 </p>
 
 ### 2 · Mejorar el system prompt
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/es/pestana-2.png" alt="Pestaña 2 con la mejora pedida, el resumen, la tabla de cambios y la nueva versión del system prompt" width="900">
+  <img src="docs/es/pestana-2.png" alt="Pestaña 2 con la mejora pedida, el resumen, la tabla de cambios y la nueva versión del system prompt" width="900">
 </p>
 
 Toma la última respuesta, la mejora que describas y el mapa de atribución, y
@@ -235,7 +250,7 @@ quedan guardadas en la sesión.
 ### 3 · Instrucciones muertas
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/es/pestana-3.png" alt="Pestaña 3: ejecuciones por prompt, número de instrucciones muertas, tokens ahorrados y tabla de en cuántas ejecuciones se citó cada instrucción" width="900">
+  <img src="docs/es/pestana-3.png" alt="Pestaña 3: ejecuciones por prompt, número de instrucciones muertas, tokens ahorrados y tabla de en cuántas ejecuciones se citó cada instrucción" width="900">
 </p>
 
 Pega varios user prompts realistas (separados por una línea que sólo tenga
@@ -326,8 +341,10 @@ flowchart LR
     A -->|sí| V["Regenerar sin cada<br/>instrucción y comparar"]
     A -->|no| M["Mapa de atribución"]
     V --> M
-    M --> UI["Vista por bloques"]
+    M --> CF["Confianza por bloque<br/>+ aviso sin fuente"]
+    CF --> UI["Vista por bloques · CLI · API REST"]
     M --> RW["Reescritura del<br/>system prompt"]
+    M -.->|"× N ejecuciones"| D["Instrucciones muertas<br/>+ prompt recortado"]
 ```
 
 **1. Segmentación.** Los prompts se dividen de forma determinista en

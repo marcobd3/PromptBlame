@@ -4,7 +4,7 @@
 
 **Find out which instruction in your prompt produced each part of an LLM's response.**
 
-**English** · [Español](https://github.com/marcobd3/PromptBlame/blob/main/README.es.md)
+**English** · [Español](README.es.md)
 
 [![Tests](https://github.com/marcobd3/PromptBlame/actions/workflows/tests.yml/badge.svg)](https://github.com/marcobd3/PromptBlame/actions/workflows/tests.yml)
 [![PyPI](https://img.shields.io/pypi/v/promptblame?logo=pypi&logoColor=white)](https://pypi.org/project/promptblame/)
@@ -25,7 +25,7 @@
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/demo.gif" alt="Demo: generate a response, open the attribution view where each coloured block links to the instruction that caused it, then describe an improvement and get a new system prompt with its diff" width="900">
+  <img src="docs/demo.gif" alt="Demo: generate a response, open the attribution view where each coloured block links to the instruction that caused it, then describe an improvement and get a new system prompt with its diff" width="900">
 </p>
 
 ---
@@ -71,9 +71,9 @@ needs logits, attention or weights.
   comes from, with a confidence level and an explanation.
 - **Quotes are always literal.** The judge only returns identifiers; offsets
   are computed in Python, so a quote cannot be made up.
-- **Ignored instructions in plain sight.** Lists the instructions with no
-  visible effect on the response, which are usually the ones the model is
-  skipping.
+- **Ignored instructions in plain sight.** Each attribution lists the
+  instructions with no visible effect on that response, which are usually the
+  ones the model is skipping (tab 3 does the same across many runs).
 - **Ablation check with causal scores (optional).** Confirms each attribution
   by regenerating the response without the cited instruction and measuring how
   much of the block disappears (0 to 1). It can be run from the attribution
@@ -122,7 +122,7 @@ passed on to Streamlit, e.g. `promptblame --server.port 8600`.
 
 ### Configuration with `.env`
 
-Copy [`.env.example`](https://github.com/marcobd3/PromptBlame/blob/main/.env.example)
+Copy [`.env.example`](.env.example)
 to `.env` in the folder where you launch PromptBlame and fill in what you need.
 The UI, the CLI and the REST API load it on start-up; variables already set in
 the environment win.
@@ -140,6 +140,19 @@ Keys from `.env` are used on the server and are **not** copied into the
 sidebar fields (whatever is in a field reaches the browser); the field shows
 "Set on the server" instead. Providers, models, efforts, language and ablation
 become the sidebar's starting values.
+
+| Variable | Default | Used for |
+|---|---|---|
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` (or `GOOGLE_API_KEY`), `OPENAI_COMPATIBLE_API_KEY` | | Provider keys. |
+| `OPENAI_COMPATIBLE_BASE_URL` | `http://localhost:11434/v1` | Base URL of the OpenAI-compatible endpoint. |
+| `PROMPTBLAME_SERVICE_PROVIDER` / `_MODEL` / `_EFFORT` | `anthropic` / `claude-opus-5-5` / `medium` | Service: generates the response and the ablation runs. |
+| `PROMPTBLAME_JUDGE_PROVIDER` / `_MODEL` / `_EFFORT` | `anthropic` / `claude-opus-5-5` / `high` | Judge: attribution and rewriting. |
+| `PROMPTBLAME_LANGUAGE` | the browser's | `en` or `es`. |
+| `PROMPTBLAME_ABLATION` | `false` | Verify by ablation by default. |
+| `PROMPTBLAME_MAX_ABLATION` | `8` | Max. instructions to ablate (1-30). |
+| `PROMPTBLAME_API_TOKEN` | | Bearer token required by the REST API. |
+
+Invalid values are ignored and the default is used.
 
 ### No API key? Use a local model
 
@@ -189,7 +202,7 @@ extras, for platforms that only read that file (e.g. Streamlit Community Cloud).
 ### 1 · Response and attribution
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/tab-1.png" alt="Tab 1: input on the left, service output on the right and, below, the attribution section with its instructions" width="900">
+  <img src="docs/tab-1.png" alt="Tab 1: input on the left, service output on the right and, below, the attribution section with its instructions" width="900">
 </p>
 
 The input is on the left, the service output on the right and, below both,
@@ -212,13 +225,13 @@ the attribution section.
    confirmed* badge and a **causal score** to every link.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/attribution-view.png" alt="Attribution window: the response split into coloured blocks and, on the right, the prompt quote each block comes from" width="900">
+  <img src="docs/attribution-view.png" alt="Attribution window: the response split into coloured blocks and, on the right, the prompt quote each block comes from" width="900">
 </p>
 
 ### 2 · Improve the system prompt
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/tab-2.png" alt="Tab 2 with the requested improvement, the summary, the table of changes and the new system prompt" width="900">
+  <img src="docs/tab-2.png" alt="Tab 2 with the requested improvement, the summary, the table of changes and the new system prompt" width="900">
 </p>
 
 Takes the last response, the improvement you describe and the attribution map,
@@ -230,7 +243,7 @@ in the session.
 ### 3 · Dead instructions
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/tab-3.png" alt="Tab 3: runs per prompt, the number of dead instructions, tokens saved and a table of how many runs cited each instruction" width="900">
+  <img src="docs/tab-3.png" alt="Tab 3: runs per prompt, the number of dead instructions, tokens saved and a table of how many runs cited each instruction" width="900">
 </p>
 
 Paste several realistic user prompts (separated by a line with only `---`),
@@ -319,8 +332,10 @@ flowchart LR
     A -->|yes| V["Regenerate without each<br/>instruction and compare"]
     A -->|no| M["Attribution map"]
     V --> M
-    M --> UI["Block view"]
+    M --> CF["Block confidence<br/>+ unsourced warning"]
+    CF --> UI["Block view · CLI · REST API"]
     M --> RW["System prompt<br/>rewrite"]
+    M -.->|"× N runs"| D["Dead instructions<br/>+ trimmed prompt"]
 ```
 
 **1. Segmentation.** The prompts are deterministically split into instructions

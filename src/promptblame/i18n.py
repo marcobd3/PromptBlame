@@ -54,7 +54,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "base_url": "Endpoint base URL",
         "api_key": "{provider} API key",
         "optional": " (optional)",
-        "key_on_server": "Set on the server (.env or environment)",
+        "key_on_server": "Set on the server",
         "key_help": "If left empty, the server environment variable is used: {envs}. "
         "The key is only used to call the provider; it is never stored or logged.",
         "or": " or ",
@@ -159,7 +159,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "base_url": "URL base del endpoint",
         "api_key": "API key de {provider}",
         "optional": " (opcional)",
-        "key_on_server": "Configurada en el servidor (.env o entorno)",
+        "key_on_server": "Configurada en el servidor",
         "key_help": "Si la dejas vacía se usa la variable de entorno del servidor: {envs}. "
         "La key sólo se usa para llamar al proveedor; no se guarda ni se registra.",
         "or": " o ",
