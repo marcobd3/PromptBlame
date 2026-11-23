@@ -19,6 +19,7 @@
 [Uso](#uso) ·
 [Cómo funciona](#cómo-funciona) ·
 [Uso como librería](#uso-como-librería) ·
+[CLI y API](#cli-y-api-rest) ·
 [Contribuir](#contribuir)
 
 </div>
@@ -51,10 +52,16 @@ que no quieres, PromptBlame te dice **de dónde viene**:
 
 - **Depurar una mala respuesta.** Ves qué instrucción (o qué parte del mensaje
   del usuario) produjo la frase que no te gusta, en lugar de adivinarlo.
-- **Encontrar instrucciones muertas.** Las instrucciones sin efecto visible se
-  listan aparte, así sabes qué está ignorando el modelo y qué podrías quitar.
-- **Ver lo que pone el modelo de su cosecha.** Los bloques grises no vienen de
-  ninguna instrucción: es el conocimiento propio del modelo rellenando huecos.
+- **Encontrar instrucciones muertas.** Pasa varios prompts N veces y mira qué
+  instrucciones no se citan nunca: lo que el modelo ignora y lo que podrías
+  recortar para ahorrar tokens en cada llamada, con el prompt recortado listo
+  para probar.
+- **Ver lo que pone el modelo de su cosecha.** Los bloques que no vienen de
+  ninguna instrucción se marcan con un aviso: conocimiento propio del modelo o
+  posible alucinación.
+- **Saber cuánto fiarte de cada enlace.** Cada bloque tiene una confianza y la
+  ablación da a cada enlace una puntuación causal medida quitando la
+  instrucción.
 - **Arreglar el prompt con bisturí.** Describe el cambio que quieres y el
   reescritor toca sólo las instrucciones responsables, con una tabla de cambios
   y un diff.
@@ -71,8 +78,21 @@ nunca necesita logits, atención ni pesos.
   offsets se calculan en Python, así que una cita no puede inventarse.
 - **Instrucciones ignoradas a la vista.** Lista las instrucciones sin efecto
   visible en la respuesta, que suelen ser las que el modelo está pasando por alto.
-- **Verificación por ablación (opcional).** Confirma cada atribución
-  regenerando la respuesta sin la instrucción citada.
+- **Verificación por ablación con puntuación causal (opcional).** Confirma
+  cada atribución regenerando la respuesta sin la instrucción citada y
+  midiendo cuánto del bloque desaparece (de 0 a 1). Se puede lanzar desde la
+  propia ventana de atribución.
+- **Confianza por bloque.** Una barra de confianza en cada bloque (la del juez,
+  promediada con la puntuación causal tras la ablación), los bloques de
+  confianza baja subrayados y un aviso con la parte de la respuesta que no
+  viene de ninguna instrucción.
+- **Instrucciones muertas.** La pestaña 3 pasa varios user prompts varias
+  veces y lista las instrucciones del system prompt que nunca se citan, con una
+  versión recortada, su diff y los tokens que ahorra por llamada.
+- **CLI y API REST** para pipelines de CI y evaluaciones, con salida JSON y
+  códigos de salida para usarlas como puertas de calidad.
+- **Soporte de `.env`.** Las API keys y los proveedores y modelos por defecto
+  se cargan de un fichero `.env` (ver `.env.example`).
 - **Criterios de evaluación propios.** Una caja de instrucciones personalizadas
   para decirle al juez cómo evaluar: qué cuenta como causa, qué ignorar, cómo
   de estricto ser.
@@ -98,12 +118,33 @@ que se instala con `pip`:
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install "promptblame[all]"
-export ANTHROPIC_API_KEY="sk-ant-..."   # o escríbela en la barra lateral
+export ANTHROPIC_API_KEY="sk-ant-..."   # o usa un .env, o escríbela en la barra lateral
 promptblame
 ```
 
 La app se abre en <http://localhost:8501> con un ejemplo cargado. Los
 argumentos se pasan a Streamlit, p. ej. `promptblame --server.port 8600`.
+
+### Configuración con `.env`
+
+Copia [`.env.example`](https://github.com/marcobd3/PromptBlame/blob/main/.env.example)
+a `.env` en la carpeta desde la que lanzas PromptBlame y rellena lo que
+necesites. La interfaz, la CLI y la API REST lo cargan al arrancar; las
+variables que ya estén definidas en el entorno tienen prioridad.
+
+```dotenv
+ANTHROPIC_API_KEY=sk-ant-...
+PROMPTBLAME_SERVICE_PROVIDER=openai
+PROMPTBLAME_SERVICE_MODEL=gpt-6.1-sol
+PROMPTBLAME_JUDGE_MODEL=claude-opus-5-5
+PROMPTBLAME_JUDGE_EFFORT=high
+PROMPTBLAME_ABLATION=true
+```
+
+Las keys del `.env` se usan en el servidor y **no** se copian en los campos de
+la barra lateral (lo que hay en un campo llega al navegador); en su lugar el
+campo muestra «Configurada en el servidor». Proveedores, modelos, esfuerzos,
+idioma y ablación pasan a ser los valores iniciales de la barra lateral.
 
 ### ¿Sin API key? Usa un modelo local
 
@@ -131,6 +172,7 @@ OpenRouter, Mistral, vLLM…). Añade lo que necesites:
 pip install promptblame                    # librería: Claude, OpenAI y compatibles
 pip install "promptblame[app]"             # + interfaz de Streamlit (comando promptblame)
 pip install "promptblame[gemini]"          # + Google Gemini
+pip install "promptblame[api]"             # + API REST (FastAPI, promptblame serve)
 pip install "promptblame[all]"             # todo
 ```
 
@@ -165,8 +207,14 @@ las dos, la sección de atribución.
    atribución y pulsa **Ver atribución**. Se abre una ventana con la respuesta dividida en
    bloques de colores y, a la derecha, la cita de la que procede cada bloque.
    Al pasar el ratón por un bloque se resalta su cita; al hacer clic se salta a ella.
-3. Los bloques grises no proceden de ninguna instrucción: son conocimiento
-   propio del modelo.
+3. Cada tarjeta muestra la **confianza** del bloque; los de confianza baja se
+   subrayan en la respuesta. Los bloques sin instrucción de origen salen en
+   gris con un ⚠, y un aviso arriba dice cuáles son y qué parte de la respuesta
+   ocupan: conocimiento propio del modelo o posible alucinación, conviene
+   revisarlos.
+4. **Verificar estos enlaces por ablación** (o la casilla de la barra lateral)
+   regenera la respuesta sin cada instrucción citada y añade a cada enlace una
+   marca *confirmada / no confirmada* y una **puntuación causal**.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/es/vista-atribucion.png" alt="Ventana de atribución: la respuesta dividida en bloques de colores y, a la derecha, la cita del prompt de la que procede cada bloque" width="900">
@@ -183,6 +231,25 @@ genera una nueva versión del system prompt con un resumen, la tabla de cambios
 (qué instrucción se modifica, elimina o añade y por qué) y el diff. Con **Usar
 esta versión en la pestaña 1** pasas a probarla; las versiones anteriores
 quedan guardadas en la sesión.
+
+### 3 · Instrucciones muertas
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/es/pestana-3.png" alt="Pestaña 3: ejecuciones por prompt, número de instrucciones muertas, tokens ahorrados y tabla de en cuántas ejecuciones se citó cada instrucción" width="900">
+</p>
+
+Pega varios user prompts realistas (separados por una línea que sólo tenga
+`---`), elige cuántas ejecuciones por prompt y pulsa **Buscar instrucciones
+muertas**. Cada ejecución genera una respuesta y la atribuye; la tabla muestra
+en cuántas ejecuciones se citó cada instrucción del system prompt. Las que no
+se citan nunca (o como mucho en la fracción de ejecuciones elegida) se
+proponen para quitar, con el prompt recortado, su diff y los tokens que se
+ahorran por llamada. **Usar esta versión en la pestaña 1** la adopta.
+
+Que no se cite nunca no siempre significa que sobre: una regla de seguridad o
+para casos raros sólo actúa cuando el caso aparece, así que usa prompts
+variados y revisa la propuesta. Cada ejecución cuesta dos llamadas (servicio y
+juez).
 
 ### Instrucciones personalizadas de evaluación
 
@@ -215,6 +282,9 @@ Todo se ajusta en la barra lateral:
 | Credenciales | variables de entorno | API key de cada proveedor en uso y, para el endpoint compatible, su URL base. |
 | Verificar con ablación | desactivado | Confirma cada atribución regenerando sin la instrucción. |
 | Máx. instrucciones a ablacionar | `8` | Límite de regeneraciones (se eligen las más citadas). |
+
+Todos los valores por defecto de esta tabla se pueden fijar en el `.env` (ver
+[Configuración con `.env`](#configuración-con-env)).
 
 El servicio y el juez son independientes: puedes analizar la respuesta de un
 modelo local de Ollama con Claude como juez, o comparar cómo atribuyen dos
@@ -280,7 +350,21 @@ $$\text{efecto}(B, S) = \text{sim}(B, \text{control}) - \text{sim}(B, \text{sin 
 
 donde *control* es otra generación con el prompt completo, lo que descuenta la
 variación natural entre generaciones. Un efecto ≥ 0,15 marca la atribución como
-**confirmada**. Cuesta una llamada por instrucción más una de control, en paralelo.
+**confirmada**. La **puntuación causal** lo normaliza por la similitud con el
+control, $\text{efecto} / \text{sim}(B, \text{control})$: la fracción del bloque
+que desaparece sin la instrucción (1 = entero, 0 = nada). Cuesta una llamada
+por instrucción más una de control, en paralelo.
+
+**Confianza del bloque.** La confianza del juez en la fuente más fiable del
+bloque (alta 0,9, media 0,6, baja 0,3), promediada con la mayor puntuación
+causal si se hizo la ablación. Los bloques sin fuente no tienen confianza y se
+informan como sin fuente, junto con la parte de la respuesta que ocupan.
+
+**Instrucciones muertas.** Se cuentan las citas de cada instrucción en N
+ejecuciones atribuidas del mismo system prompt; las que se citan como mucho en
+la fracción elegida se quitan (la línea entera, o la frase dentro de la línea)
+para construir el prompt recortado. Los tokens se estiman a unos 4 caracteres
+cada uno.
 
 **4. Reescritura.** El mapa de atribución (bloques, causas, confianza, efecto de
 ablación e instrucciones sin efecto) se pasa al reescritor junto con la mejora
@@ -292,16 +376,20 @@ afectados, refuerza las que no tuvieron efecto y deja intacto lo demás.
 ```text
 PromptBlame/
 ├── app.py                        # Atajo para `streamlit run app.py` desde el repositorio
+├── .env.example                  # Plantilla de API keys y valores por defecto
 ├── src/promptblame/
 │   ├── __init__.py               # API pública y versión
 │   ├── segmentation.py           # Segmentación determinista en unidades con offsets
 │   ├── llm.py                    # Cliente multiproveedor: texto y JSON estructurado
 │   ├── attribution.py            # Juez LLM, agrupación en bloques y ablación
 │   ├── rewrite.py                # Reescritura del system prompt y diff
+│   ├── dead.py                   # Instrucciones muertas en N ejecuciones y recorte
+│   ├── config.py                 # Carga del .env y valores por defecto del entorno
+│   ├── api.py                    # API REST con FastAPI (extra [api])
 │   ├── render.py                 # Vista HTML de bloques de colores y citas
 │   ├── app.py                    # Interfaz de Streamlit (extra [app])
 │   ├── i18n.py                   # Textos de la interfaz en inglés y español
-│   └── cli.py                    # Comando `promptblame`
+│   └── cli.py                    # Comando `promptblame`: interfaz, subcomandos y `serve`
 ├── tests/                        # Tests con los clientes de los proveedores simulados
 └── docs/                         # Capturas (en inglés; en español, en docs/es/)
 ```
@@ -337,9 +425,73 @@ for block in attr.blocks:
 
 print("Sin efecto:", [u.id for u in attr.unused_sources])
 
+print("Sin fuente:", [b.id for b in attr.unsourced_blocks], f"{attr.unsourced_share:.0%}")
+print("Confianza por bloque:", {b.id: b.confidence_score for b in attr.blocks})
+
 result = rewrite_system_prompt(judge, attr, "Que pida el número de pedido.")
 print(unified_diff(system_prompt, result.new_system_prompt))
+
+# Instrucciones muertas con varios prompts y ejecuciones
+from promptblame import scan_dead_instructions
+
+report = scan_dead_instructions(
+    service, judge, system_prompt, ["¿Dónde está mi pedido?", "¿Puedo devolverlo?"], runs_per_prompt=3
+)
+print([u.unit.id for u in report.dead], report.tokens_saved)
+print(report.trimmed_system_prompt)
+
+attr.to_dict()  # serializable a JSON, igual que report.to_dict()
 ```
+
+## CLI y API REST
+
+Las mismas funciones se pueden usar sin la interfaz, para meterlas en
+pipelines de CI y en baterías de evaluación. Los prompts se leen de ficheros
+(`-` = entrada estándar), el `.env` se carga igual que en la interfaz y
+`--json` imprime el resultado completo.
+
+```bash
+# Atribuir una respuesta (o dejar que la genere el servicio si se omite -r)
+promptblame attribute -s system.txt -u user.txt -r respuesta.txt --json -o atribucion.json
+
+# Romper el build si más del 20 % de la respuesta no viene de ninguna
+# instrucción o si algún bloque tiene confianza menor de 0,5 (código 3)
+promptblame attribute -s system.txt -u user.txt --ablation --fail-on-unsourced 0.2 --min-confidence 0.5
+
+# Instrucciones muertas con 3 ejecuciones de cada prompt (.jsonl o texto separado por líneas ---)
+promptblame dead -s system.txt -u prompts.jsonl --runs 3 --write-trimmed system.recortado.txt --fail-on-dead
+
+# Nueva versión del system prompt
+promptblame rewrite -s system.txt -u user.txt -i "No pidas el número de pedido dos veces" -o system.nuevo.txt
+```
+
+Los modelos se eligen con `--provider/--model/--effort` (servicio) y
+`--judge-provider/--judge-model/--judge-effort` (juez); por defecto, los del
+`.env`. Códigos de salida: 0 bien, 1 error, 2 argumentos incorrectos, 3 falló
+una comprobación `--fail-on-*`.
+
+**API REST.** `pip install "promptblame[api]"` y `promptblame serve` arrancan
+un servidor FastAPI en `http://127.0.0.1:8000` (documentación interactiva en
+`/docs`):
+
+| Endpoint | Cuerpo (JSON) | Devuelve |
+|---|---|---|
+| `GET /health` | | estado y versión |
+| `POST /generate` | `system_prompt`, `user_prompt`, `service` | `response` |
+| `POST /attribute` | `system_prompt`, `user_prompt`, `response`?, `judge`, `service`, `instructions`, `language`, `ablation`, `max_ablation` | la atribución (`Attribution.to_dict()`) |
+| `POST /rewrite` | lo mismo + `improvement` | `new_system_prompt`, `changes`, `summary`, `diff`, `attribution` |
+| `POST /dead-instructions` | `system_prompt`, `user_prompts`, `runs_per_prompt`, `threshold` | uso de cada instrucción, `dead`, `trimmed_system_prompt`, `tokens_saved` |
+
+`service` y `judge` son `{"provider", "model", "effort"}`, todos opcionales
+(por defecto, los del `.env`). Las API keys y la URL del endpoint compatible
+salen **sólo** del entorno del servidor, nunca de la petición. Con
+`PROMPTBLAME_API_TOKEN` se exige `Authorization: Bearer <token>`.
+
+```bash
+curl -s localhost:8000/attribute -H 'content-type: application/json' \
+  -d '{"system_prompt": "Responde en español.", "user_prompt": "Hello", "language": "es"}'
+```
+
 
 ## Desarrollo
 
@@ -352,8 +504,8 @@ pytest
 
 Los tests simulan los clientes de cada proveedor, así que no necesitan API key
 ni gastan tokens. Cubren la segmentación, el juez, la agrupación en bloques, la
-ablación, la reescritura, la vista HTML, los cuatro proveedores, los casos de
-seguridad y un recorrido completo de la interfaz con `streamlit.testing`. En
+ablación, la reescritura, la vista HTML, la confianza por bloque, las instrucciones muertas, el `.env`, la
+CLI, la API REST, los cuatro proveedores, los casos de seguridad y un recorrido completo de la interfaz con `streamlit.testing`. En
 GitHub Actions se ejecutan con Python 3.11 a 3.13, junto con ruff, mypy y la
 construcción del paquete, en cada *push* y *pull request*.
 
@@ -377,6 +529,12 @@ construcción del paquete, en cada *push* y *pull request*.
   autenticación. El proveedor «compatible» hace que el servidor llame a la URL
   que escriba el usuario (sólo `http`/`https`); no lo expongas en una red con
   servicios internos.
+- **API REST.** Escucha en `127.0.0.1` por defecto. Las keys de los
+  proveedores y la URL del endpoint compatible salen sólo del entorno del
+  servidor, así que un cliente no puede hacer que el servidor llame a una URL
+  cualquiera. Define `PROMPTBLAME_API_TOKEN` antes de exponerla en una red.
+- **`.env`.** Está en `.gitignore`; no lo subas nunca. Las keys que se cargan
+  de él se quedan en el servidor como cualquier otra variable de entorno.
 - **Contenido no confiable.** Prompts y respuestas se escapan en la vista HTML,
   la respuesta se muestra como texto (no como Markdown, para que no cargue
   imágenes externas) y la salida JSON de los modelos se valida antes de usarla.
@@ -389,7 +547,11 @@ Para informar de una vulnerabilidad, consulta [SECURITY.md](https://github.com/m
 ## Limitaciones conocidas
 
 - La atribución del juez es una hipótesis del propio modelo. La ablación la
-  contrasta, pero mide similitud léxica, no semántica.
+  contrasta, pero mide similitud léxica, no semántica, a partir de una sola
+  generación de control, así que la puntuación causal es ruidosa en bloques
+  muy cortos.
+- Sin ablación, la confianza del bloque es la que declara el juez, no una
+  probabilidad calibrada.
 - Las instrucciones redundantes pueden no superar la ablación aunque influyan:
   si dos instrucciones piden lo mismo, quitar una sola no cambia la respuesta.
 - La segmentación por frases es heurística y está pensada para español e inglés.

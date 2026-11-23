@@ -19,6 +19,7 @@
 [Usage](#usage) ·
 [How it works](#how-it-works) ·
 [Library usage](#library-usage) ·
+[CLI and API](#cli-and-rest-api) ·
 [Contributing](#contributing)
 
 </div>
@@ -50,10 +51,13 @@ don't want, PromptBlame tells you **where it came from**:
 
 - **Debug a bad answer.** See which instruction (or which part of the user's
   message) produced the sentence you don't like, instead of guessing.
-- **Find dead instructions.** Instructions with no visible effect are listed
-  separately, so you know what the model is ignoring and what you could remove.
-- **Spot what the model made up.** Grey blocks come from no instruction at all:
-  that is the model's own knowledge filling the gaps.
+- **Find dead instructions.** Run several prompts N times and see which
+  instructions are never cited: what the model ignores and what you could trim
+  to save tokens on every call, with the trimmed prompt ready to try.
+- **Spot what the model made up.** Blocks that come from no instruction are
+  flagged with a warning: the model's own knowledge or a possible hallucination.
+- **Know how much to trust each link.** Every block has a confidence score, and
+  ablation gives each link a causal score measured by removing the instruction.
 - **Fix the prompt surgically.** Describe the change you want and the rewriter
   touches only the instructions responsible, with a table of changes and a diff.
 
@@ -70,8 +74,21 @@ needs logits, attention or weights.
 - **Ignored instructions in plain sight.** Lists the instructions with no
   visible effect on the response, which are usually the ones the model is
   skipping.
-- **Ablation check (optional).** Confirms each attribution by regenerating the
-  response without the cited instruction.
+- **Ablation check with causal scores (optional).** Confirms each attribution
+  by regenerating the response without the cited instruction and measuring how
+  much of the block disappears (0 to 1). It can be run from the attribution
+  window itself.
+- **Per-block confidence.** A confidence bar on every block (the judge's,
+  averaged with the causal score after ablation), low-confidence blocks
+  underlined, and a warning with the share of the response that comes from no
+  instruction.
+- **Dead instructions.** Tab 3 runs a set of user prompts several times and
+  lists the system prompt instructions never cited, with a trimmed version,
+  its diff and the tokens saved per call.
+- **CLI and REST API** for CI pipelines and evaluations, with JSON output and
+  exit codes for quality gates.
+- **`.env` support.** API keys and default providers and models are loaded
+  from a `.env` file (see `.env.example`).
 - **Your own evaluation criteria.** A box of custom instructions to tell the
   judge how to evaluate: what counts as a cause, what to ignore, how strict
   to be.
@@ -96,12 +113,33 @@ you can install it with `pip`:
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install "promptblame[all]"
-export ANTHROPIC_API_KEY="sk-ant-..."   # or type it in the sidebar
+export ANTHROPIC_API_KEY="sk-ant-..."   # or use a .env file, or type it in the sidebar
 promptblame
 ```
 
 The app opens at <http://localhost:8501> with an example loaded. Arguments are
 passed on to Streamlit, e.g. `promptblame --server.port 8600`.
+
+### Configuration with `.env`
+
+Copy [`.env.example`](https://github.com/marcobd3/PromptBlame/blob/main/.env.example)
+to `.env` in the folder where you launch PromptBlame and fill in what you need.
+The UI, the CLI and the REST API load it on start-up; variables already set in
+the environment win.
+
+```dotenv
+ANTHROPIC_API_KEY=sk-ant-...
+PROMPTBLAME_SERVICE_PROVIDER=openai
+PROMPTBLAME_SERVICE_MODEL=gpt-6.1-sol
+PROMPTBLAME_JUDGE_MODEL=claude-opus-5-5
+PROMPTBLAME_JUDGE_EFFORT=high
+PROMPTBLAME_ABLATION=true
+```
+
+Keys from `.env` are used on the server and are **not** copied into the
+sidebar fields (whatever is in a field reaches the browser); the field shows
+"Set on the server" instead. Providers, models, efforts, language and ablation
+become the sidebar's starting values.
 
 ### No API key? Use a local model
 
@@ -129,6 +167,7 @@ OpenRouter, Mistral, vLLM…). Add what you need:
 pip install promptblame                    # library: Claude, OpenAI and compatibles
 pip install "promptblame[app]"             # + Streamlit interface (promptblame command)
 pip install "promptblame[gemini]"          # + Google Gemini
+pip install "promptblame[api]"             # + REST API (FastAPI, promptblame serve)
 pip install "promptblame[all]"             # everything
 ```
 
@@ -163,7 +202,14 @@ the attribution section.
    instructions and click **View attribution**. A window opens with the
    response split into coloured blocks and, on the right, the quote each block
    comes from. Hovering over a block highlights its quote; clicking jumps to it.
-3. Grey blocks come from no instruction: they are the model's own knowledge.
+3. Each quote card shows the block's **confidence** bar; low-confidence blocks
+   are underlined in the response. Blocks with no source instruction are grey
+   with a ⚠, and a warning at the top says which ones and what share of the
+   response they make up: the model's own knowledge or a possible
+   hallucination, worth checking.
+4. **Verify these links by ablation** (or the sidebar checkbox) regenerates the
+   response without each cited instruction and adds a *confirmed / not
+   confirmed* badge and a **causal score** to every link.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/attribution-view.png" alt="Attribution window: the response split into coloured blocks and, on the right, the prompt quote each block comes from" width="900">
@@ -180,6 +226,24 @@ and generates a new version of the system prompt with a summary, the table of
 changes (which instruction is modified, removed or added, and why) and the
 diff. **Use this version in tab 1** lets you try it; previous versions are kept
 in the session.
+
+### 3 · Dead instructions
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/marcobd3/PromptBlame/main/docs/tab-3.png" alt="Tab 3: runs per prompt, the number of dead instructions, tokens saved and a table of how many runs cited each instruction" width="900">
+</p>
+
+Paste several realistic user prompts (separated by a line with only `---`),
+choose how many runs per prompt and click **Find dead instructions**. Each run
+generates a response and attributes it; the table shows in how many runs each
+system prompt instruction was cited. Those never cited (or cited in at most the
+chosen share of runs) are proposed for removal, with the trimmed prompt, its
+diff and the estimated tokens saved per call. **Use this version in tab 1**
+adopts it.
+
+Never cited does not always mean useless: a safety rule or an edge-case
+instruction only acts when the case comes up, so use varied prompts and
+review the proposal. Each run costs two calls (service and judge).
 
 ### Custom attribution instructions
 
@@ -211,6 +275,9 @@ Everything is set in the sidebar:
 | Credentials | environment variables | API key for each provider in use and, for the compatible endpoint, its base URL. |
 | Verify with ablation | off | Confirms each attribution by regenerating without the instruction. |
 | Max. instructions to ablate | `8` | Limit on regenerations (the most cited are chosen). |
+
+Every default in this table can be set in `.env` (see
+[Configuration with `.env`](#configuration-with-env)).
 
 The service and the judge are independent: you can analyse a response from a
 local Ollama model with Claude as the judge, or compare how two providers
@@ -276,8 +343,20 @@ $$\text{effect}(B, S) = \text{sim}(B, \text{control}) - \text{sim}(B, \text{with
 
 where *control* is another generation with the full prompt, which discounts the
 natural variation between generations. An effect ≥ 0.15 marks the attribution
-as **confirmed**. It costs one call per instruction plus a control call, run in
-parallel.
+as **confirmed**. The **causal score** normalises it by the control similarity,
+$\text{effect} / \text{sim}(B, \text{control})$: the fraction of the block that
+disappears without the instruction (1 = all of it, 0 = nothing). It costs one
+call per instruction plus a control call, run in parallel.
+
+**Block confidence.** The judge's confidence in the block's most reliable
+source (high 0.9, medium 0.6, low 0.3), averaged with the highest causal score
+when ablation was run. Blocks with no source have no confidence and are
+reported as unsourced, together with their share of the response.
+
+**Dead instructions.** Each instruction's citations are counted across N
+attributed runs of the same system prompt; those cited in no more than the
+chosen share of runs are removed (whole lines, or the sentence within a line)
+to build the trimmed prompt. Tokens are estimated at about 4 characters each.
 
 **4. Rewrite.** The attribution map (blocks, causes, confidence, ablation
 effect and instructions with no effect) is passed to the rewriter together with
@@ -290,16 +369,20 @@ rest untouched.
 ```text
 PromptBlame/
 ├── app.py                        # Shortcut for `streamlit run app.py` from the repository
+├── .env.example                  # Template for API keys and defaults
 ├── src/promptblame/
 │   ├── __init__.py               # Public API and version
 │   ├── segmentation.py           # Deterministic segmentation into units with offsets
 │   ├── llm.py                    # Multi-provider client: text and structured JSON
 │   ├── attribution.py            # LLM judge, grouping into blocks and ablation
 │   ├── rewrite.py                # System prompt rewrite and diff
+│   ├── dead.py                   # Dead instructions across N runs and trimming
+│   ├── config.py                 # .env loading and defaults from the environment
+│   ├── api.py                    # REST API with FastAPI ([api] extra)
 │   ├── render.py                 # HTML view of coloured blocks and quotes
 │   ├── app.py                    # Streamlit interface ([app] extra)
 │   ├── i18n.py                   # Interface texts in English and Spanish
-│   └── cli.py                    # `promptblame` command
+│   └── cli.py                    # `promptblame` command: UI, CLI subcommands and `serve`
 ├── tests/                        # Tests with simulated provider clients
 └── docs/                         # Screenshots (English; Spanish in docs/es/)
 ```
@@ -335,9 +418,70 @@ for block in attr.blocks:
 
 print("No effect:", [u.id for u in attr.unused_sources])
 
+print("Unsourced:", [b.id for b in attr.unsourced_blocks], f"{attr.unsourced_share:.0%}")
+print("Block confidence:", {b.id: b.confidence_score for b in attr.blocks})
+
 result = rewrite_system_prompt(judge, attr, "Ask for the order number.")
 print(unified_diff(system_prompt, result.new_system_prompt))
+
+# Dead instructions across several prompts and runs
+from promptblame import scan_dead_instructions
+
+report = scan_dead_instructions(
+    service, judge, system_prompt, ["Where is my order?", "Can I return it?"], runs_per_prompt=3
+)
+print([u.unit.id for u in report.dead], report.tokens_saved)
+print(report.trimmed_system_prompt)
+
+attr.to_dict()  # JSON-serialisable, like report.to_dict()
 ```
+
+## CLI and REST API
+
+The same features run without the interface, to put them in CI pipelines and
+evaluation suites. Prompts are read from files (`-` = stdin), the `.env` is
+loaded as in the UI, and `--json` prints the full result.
+
+```bash
+# Attribute a response (or let the service generate it if -r is omitted)
+promptblame attribute -s system.txt -u user.txt -r response.txt --json -o attribution.json
+
+# Fail the build if more than 20% of the response comes from no instruction,
+# or if any block has a confidence below 0.5 (exit code 3)
+promptblame attribute -s system.txt -u user.txt --ablation --fail-on-unsourced 0.2 --min-confidence 0.5
+
+# Dead instructions across 3 runs of each prompt (.jsonl or text separated by --- lines)
+promptblame dead -s system.txt -u prompts.jsonl --runs 3 --write-trimmed system.trimmed.txt --fail-on-dead
+
+# New system prompt version
+promptblame rewrite -s system.txt -u user.txt -i "Don't ask for the order number twice" -o system.new.txt
+```
+
+Models are chosen with `--provider/--model/--effort` (service) and
+`--judge-provider/--judge-model/--judge-effort` (judge); by default, the ones in
+`.env`. Exit codes: 0 OK, 1 error, 2 bad arguments, 3 a `--fail-on-*` check failed.
+
+**REST API.** `pip install "promptblame[api]"` and `promptblame serve` start a
+FastAPI server on `http://127.0.0.1:8000` (interactive docs at `/docs`):
+
+| Endpoint | Body (JSON) | Returns |
+|---|---|---|
+| `GET /health` | | status and version |
+| `POST /generate` | `system_prompt`, `user_prompt`, `service` | `response` |
+| `POST /attribute` | `system_prompt`, `user_prompt`, `response`?, `judge`, `service`, `instructions`, `language`, `ablation`, `max_ablation` | the attribution (`Attribution.to_dict()`) |
+| `POST /rewrite` | the same + `improvement` | `new_system_prompt`, `changes`, `summary`, `diff`, `attribution` |
+| `POST /dead-instructions` | `system_prompt`, `user_prompts`, `runs_per_prompt`, `threshold` | per-instruction usage, `dead`, `trimmed_system_prompt`, `tokens_saved` |
+
+`service` and `judge` are `{"provider", "model", "effort"}`, all optional
+(defaults from `.env`). API keys and the compatible endpoint URL come **only**
+from the server's environment, never from the request. Set
+`PROMPTBLAME_API_TOKEN` to require `Authorization: Bearer <token>`.
+
+```bash
+curl -s localhost:8000/attribute -H 'content-type: application/json' \
+  -d '{"system_prompt": "Reply in English.", "user_prompt": "Hola", "language": "en"}'
+```
+
 
 ## Development
 
@@ -350,7 +494,8 @@ pytest
 
 The tests simulate each provider's client, so they need no API key and spend no
 tokens. They cover segmentation, the judge, grouping into blocks, ablation, the
-rewrite, the HTML view, the four providers, the security cases, both interface
+rewrite, the HTML view, block confidence, dead instructions, the `.env`, the
+CLI, the REST API, the four providers, the security cases, both interface
 languages and a full run through the interface with `streamlit.testing`. On
 GitHub Actions they run on Python 3.11 to 3.13, together with ruff, mypy and the
 package build, on every *push* and *pull request*.
@@ -375,6 +520,12 @@ package build, on every *push* and *pull request*.
   authentication. The "compatible" provider makes the server call whatever URL
   the user types (only `http`/`https`); do not expose it on a network with
   internal services.
+- **REST API.** It listens on `127.0.0.1` by default. Provider keys and the
+  compatible endpoint URL are taken only from the server's environment, so a
+  client cannot make the server call an arbitrary URL. Set
+  `PROMPTBLAME_API_TOKEN` before exposing it on a network.
+- **`.env`.** It is in `.gitignore`; never commit it. Keys loaded from it stay
+  on the server like any other environment variable.
 - **Untrusted content.** Prompts and responses are escaped in the HTML view,
   the response is shown as text (not Markdown, so it cannot load external
   images) and the models' JSON output is validated before use. The judge and
@@ -386,7 +537,10 @@ To report a vulnerability, see [SECURITY.md](https://github.com/marcobd3/PromptB
 ## Known limitations
 
 - The judge's attribution is the model's own hypothesis. Ablation tests it, but
-  it measures lexical, not semantic, similarity.
+  it measures lexical, not semantic, similarity, from a single control
+  generation, so causal scores are noisy on very short blocks.
+- Block confidence without ablation is the judge's self-reported confidence,
+  not a calibrated probability.
 - Redundant instructions may fail ablation even if they have an influence: if
   two instructions ask for the same thing, removing only one does not change
   the response.

@@ -3,6 +3,40 @@
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y
 el proyecto usa [versionado semántico](https://semver.org/lang/es/).
 
+## [0.5.0] - 2026-11-23
+
+### Añadido
+
+- **`.env` automático.** La interfaz, la CLI y la API REST cargan el `.env` del
+  directorio de trabajo (con `python-dotenv`, ahora dependencia del paquete)
+  sin pisar las variables ya definidas. Además de las API keys admite
+  proveedor, modelo y esfuerzo por defecto del servicio y del juez, idioma,
+  ablación y token de la API. Plantilla documentada en `.env.example`.
+- **CLI para CI y evaluaciones.** `promptblame attribute`, `rewrite` y `dead`
+  leen los prompts de ficheros, imprimen un resumen o JSON (`--json`, `-o`) y
+  devuelven el código 3 si falla una comprobación (`--fail-on-unsourced`,
+  `--min-confidence`, `--fail-on-dead`). `promptblame` sin subcomando sigue
+  abriendo la interfaz (también `promptblame ui`).
+- **API REST** (extra `[api]`, `promptblame serve`): `/generate`, `/attribute`,
+  `/rewrite` y `/dead-instructions` con FastAPI. Las keys y la URL del
+  endpoint compatible salen sólo del entorno del servidor; con
+  `PROMPTBLAME_API_TOKEN` exige `Authorization: Bearer`.
+- **Instrucciones muertas.** Pestaña 3 y `scan_dead_instructions()`: pasa
+  varios user prompts N veces por el servicio, atribuye cada respuesta, cuenta
+  en cuántas ejecuciones se cita cada instrucción del system prompt y propone
+  una versión recortada sin las que nunca se citan, con el ahorro estimado de
+  tokens y el diff.
+- **Puntuación causal por ablación.** Cada enlace verificado tiene
+  `causal_score` (0–1): la fracción del bloque que desaparece al quitar la
+  instrucción. La ablación se puede lanzar desde la propia ventana de
+  atribución.
+- **Confianza por bloque.** Cada bloque muestra una barra de confianza (la del
+  juez, promediada con la puntuación causal si hay ablación); los de confianza
+  baja se subrayan y los que no vienen de ninguna instrucción se marcan con ⚠
+  y un aviso de posible alucinación con el porcentaje de la respuesta afectado.
+- `Attribution.to_dict()`, `unsourced_blocks`, `unsourced_share`;
+  `Block.confidence` y `confidence_score`.
+
 ## [0.4.1] - 2026-11-17
 
 ### Cambiado

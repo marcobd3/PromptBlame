@@ -118,18 +118,45 @@ def with_custom_instructions(base: str, instructions: str | None) -> str:
     return f"{base}\n\n{CUSTOM_INSTRUCTIONS_HEADER}\n<criterios_del_usuario>\n{instructions}\n</criterios_del_usuario>"
 
 
+# Peso numérico de cada nivel de confianza del juez (para la confianza del bloque).
+CONFIDENCE_VALUES = {"alta": 0.9, "media": 0.6, "baja": 0.3}
+
+
+def confidence_level(score: float) -> str:
+    """Nivel ("alta", "media" o "baja") de una confianza numérica entre 0 y 1."""
+    if score >= 0.7:
+        return "alta"
+    return "media" if score >= 0.4 else "baja"
+
+
 @dataclass
 class SourceLink:
     unit: Unit
     confidence: str
-    # Resultado de la ablación (None si no se ha verificado).
+    # Resultado de la ablación (None si no se ha verificado): caída absoluta de
+    # similitud del bloque al quitar la instrucción, descontado el control.
     ablation_effect: float | None = None
+    # Puntuación causal entre 0 y 1: qué fracción del bloque desaparece al
+    # quitar la instrucción (``ablation_effect`` dividido por la similitud del
+    # bloque con la regeneración de control).
+    causal_score: float | None = None
 
     @property
     def verified(self) -> bool | None:
         if self.ablation_effect is None:
             return None
         return self.ablation_effect >= ABLATION_THRESHOLD
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.unit.id,
+            "origin": self.unit.origin,
+            "text": self.unit.text,
+            "confidence": self.confidence,
+            "ablation_effect": self.ablation_effect,
+            "causal_score": self.causal_score,
+            "verified": self.verified,
+        }
 
 
 @dataclass
@@ -141,6 +168,48 @@ class Block:
     segment_ids: list[str]
     sources: list[SourceLink]
     explanation: str
+
+    @property
+    def unsourced(self) -> bool:
+        """Sin instrucción de origen: conocimiento propio del modelo o alucinación."""
+        return not self.sources
+
+    @property
+    def confidence_score(self) -> float | None:
+        """Confianza en la atribución del bloque, entre 0 y 1 (``None`` sin fuentes).
+
+        Parte de la confianza del juez en su fuente más fiable. Si se hizo la
+        ablación, se promedia con la mayor puntuación causal medida, de modo que
+        una atribución que la ablación no confirma pierde confianza y una que
+        sí confirma la gana.
+        """
+        if not self.sources:
+            return None
+        judge = max(CONFIDENCE_VALUES.get(link.confidence, 0.6) for link in self.sources)
+        causal = [link.causal_score for link in self.sources if link.causal_score is not None]
+        if not causal:
+            return round(judge, 3)
+        return round((judge + max(causal)) / 2, 3)
+
+    @property
+    def confidence(self) -> str | None:
+        """Nivel de confianza del bloque ("alta", "media", "baja") o ``None`` sin fuentes."""
+        score = self.confidence_score
+        return None if score is None else confidence_level(score)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "start": self.start,
+            "end": self.end,
+            "text": self.text,
+            "segment_ids": list(self.segment_ids),
+            "sources": [link.to_dict() for link in self.sources],
+            "explanation": self.explanation,
+            "unsourced": self.unsourced,
+            "confidence": self.confidence,
+            "confidence_score": self.confidence_score,
+        }
 
 
 @dataclass
@@ -166,6 +235,33 @@ class Attribution:
 
     def source(self, unit_id: str) -> Unit | None:
         return next((u for u in self.sources if u.id == unit_id), None)
+
+    @property
+    def unsourced_blocks(self) -> list[Block]:
+        """Bloques que no vienen de ninguna instrucción (conocimiento del modelo o alucinación)."""
+        return [b for b in self.blocks if b.unsourced]
+
+    @property
+    def unsourced_share(self) -> float:
+        """Fracción de la respuesta (en caracteres de los bloques) que no viene de ninguna instrucción."""
+        total = sum(len(b.text) for b in self.blocks)
+        return round(sum(len(b.text) for b in self.unsourced_blocks) / total, 3) if total else 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        """Representación serializable a JSON (para la CLI, la API REST o informes de CI)."""
+        return {
+            "system_prompt": self.system_prompt,
+            "user_prompt": self.user_prompt,
+            "response": self.response,
+            "language": self.language,
+            "instructions": self.instructions,
+            "ablation_done": self.ablation_done,
+            "blocks": [b.to_dict() for b in self.blocks],
+            "unused_sources": [{"id": u.id, "origin": u.origin, "text": u.text} for u in self.unused_sources],
+            "unsourced_blocks": [b.id for b in self.unsourced_blocks],
+            "unsourced_share": self.unsourced_share,
+            "notes": list(self.notes),
+        }
 
 
 ABLATION_THRESHOLD = 0.15
@@ -378,7 +474,8 @@ def verify_by_ablation(
         base = similarity(block.text, control)
         for link in block.sources:
             if link.unit.id in ablated:
-                drop = base - similarity(block.text, ablated[link.unit.id])
-                link.ablation_effect = round(max(0.0, drop), 3)
+                drop = max(0.0, base - similarity(block.text, ablated[link.unit.id]))
+                link.ablation_effect = round(drop, 3)
+                link.causal_score = round(min(1.0, drop / base), 3) if base > 0 else 0.0
     attribution.ablation_done = True
     return attribution
