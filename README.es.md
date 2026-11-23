@@ -25,7 +25,7 @@
 </div>
 
 <p align="center">
-  <img src="docs/demo.gif" alt="Demo: se genera una respuesta, se abre la vista de atribución donde cada bloque de color enlaza con la instrucción que lo causó y, después, se describe una mejora y se obtiene un nuevo system prompt con su diff" width="900">
+  <img src="docs/demo.gif" alt="Demo: se genera una respuesta, se abre la vista de atribución, se verifican los enlaces por ablación, se describe una mejora para obtener un nuevo system prompt y se buscan las instrucciones muertas en la pestaña 3" width="900">
 </p>
 
 <p align="center"><sub>La demo usa la interfaz en inglés; se muestra en español si tu navegador lo está.</sub></p>
@@ -131,7 +131,12 @@ argumentos se pasan a Streamlit, p. ej. `promptblame --server.port 8600`.
 
 Copia [`.env.example`](.env.example)
 a `.env` en la carpeta desde la que lanzas PromptBlame y rellena lo que
-necesites. La interfaz, la CLI y la API REST lo cargan al arrancar; las
+necesites. Si lo instalaste desde PyPI, descárgalo antes:
+
+```bash
+curl -o .env https://raw.githubusercontent.com/marcobd3/PromptBlame/main/.env.example
+```
+ La interfaz, la CLI y la API REST lo cargan al arrancar; las
 variables que ya estén definidas en el entorno tienen prioridad.
 
 ```dotenv
